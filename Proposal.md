@@ -1,4 +1,4 @@
-# ECE1724 Project Proposal: Airling Booking System
+# ECE1724 Project Proposal: Backend for Airline Booking System
 
 Guanhong Wu 1002377475  
 Shengxiang Ji 1002451232
@@ -6,7 +6,7 @@ Shengxiang Ji 1002451232
 ## Motivation
 According to the United States Department of Transportation, over 900 million air travelers were transported by US airlines in 2023 alone [1]. Therefore a high-performance and secure airline booking system is essential. We are driven to implement a web server backend for an airline booking system that provides REST API services in Rust because we believe that the particular advantages of Rust as a language lend themselves well to this application space. Web servers these days are usually built on Spring Boot for Java or .NET/ASP .NET Core frameworks. Those are all great tools, but Rust provides some advantages that help to solve problems inherent to airline booking systems.
 
-Rust — a fast, compiled language whose performance comes as close to C or C++ as possible, is very suitable for an airline booking system with such a high request count. This is because the same ticket will be booked by multiple customers or the same seat and the system has to respond within milliseconds otherwise data will be inconsistent.
+Rust, a fast, compiled language whose performance comes as close to C or C++ as possible, is very suitable for an airline booking system with such a high request count. This is because the same ticket will be booked by multiple customers or the same seat and the system has to respond within milliseconds otherwise data will be inconsistent.
 
 Rust also provides memory safety, without needing a garbage collector, therefore making it less prone to errors and security issues. This safety is best in systems that want accuracy and reliability of data.Because of the design of Rust, it is easier to write concurrent code and deal  with the issues of data races, deadlocks, and so on.
 
