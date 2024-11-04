@@ -1,4 +1,4 @@
-# ECE1724 Project Proposal: Backend for Airline Booking System
+# ECE1724 Project Proposal: Backend for Airline Booking Systems
 
 Guanhong Wu 1002377475  
 Shengxiang Ji 1002451232
@@ -113,5 +113,5 @@ As of the writing of this proposal, there are approximately six weeks until the 
 
 In summary, the team segmented the project into four milestones. Each milestone is estimated to take approximately one to two weeks depending on their complexities. With the final project delivery date about six weeks away, the team is confident that the project goal can be achieved and delivered.
 
-> ### Reference
+> ### References
 > [1] BUREAU OF TRANSPORTATION STATISTICS, “Passengers Traffic,” Bts.gov, https://www.transtats.bts.gov/Data_Elements.aspx?Data=1 (accessed Nov. 3, 2024).
