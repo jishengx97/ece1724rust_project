@@ -78,7 +78,7 @@ def add_flight_route_and_flights(
                 
                 print(f"Create {len(seat_values)} seats for flight {flight_id}")
                 insert_seats_sql = """
-                INSERT INTO unavailable_seat_info 
+                INSERT INTO seat_info 
                 (flight_id, seat_number, seat_status)
                 VALUES (%s, %s, %s)
                 """

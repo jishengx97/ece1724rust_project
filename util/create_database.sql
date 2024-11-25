@@ -90,19 +90,19 @@ create table flight
 
 
 -- Table flight seat info
-create table unavailable_seat_info
+create table seat_info
 (
     flight_id   int                                                          not null,
     seat_number int                                                          not null,
     seat_status enum ('AVAILABLE', 'UNAVAILABLE', 'BOOKED') default 'BOOKED' not null,
-    constraint unavailable_seat_info_flight_id_seat_number_uindex
+    constraint seat_info_flight_id_seat_number_uindex
         unique (flight_id, seat_number),
-    constraint unavailable_seat_info_flight_flight_id_fk
+    constraint seat_info_flight_flight_id_fk
         foreign key (flight_id) references flight (flight_id)
             on delete cascade
 );
 
-alter table unavailable_seat_info
+alter table seat_info
     add primary key (flight_id, seat_number);
 
 
@@ -122,6 +122,6 @@ create table ticket
     constraint ticket_flight_id_fk
         foreign key (flight_id) references flight (flight_id)
             on delete cascade,
-    constraint ticket_unavailable_seat_info_flight_id_seat_number_fk
-        foreign key (flight_id, seat_number) references unavailable_seat_info (flight_id, seat_number)
+    constraint ticket_seat_info_flight_id_seat_number_fk
+        foreign key (flight_id, seat_number) references seat_info (flight_id, seat_number)
 );

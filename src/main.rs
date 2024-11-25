@@ -31,6 +31,7 @@ async fn rocket() -> _ {
     let flight_service = services::flight_service::FlightService::new(pool.clone());
 
     rocket::build()
+        .manage(user_service)
         .manage(flight_service)
         .mount(
             "/api",
@@ -38,14 +39,13 @@ async fn rocket() -> _ {
                 routes::user_route::register,
                 routes::user_route::login,
                 routes::flight_route::search_flights,
-
+                routes::flight_route::get_available_seats,
             ],
         )
         .mount(
             "/swagger",
             make_swagger_ui(&swagger_ui()),
         )
-        .manage(user_service)
         .attach(AdHoc::on_response("CORS", |_, res| {
             Box::pin(async move {
                 res.set_header(rocket::http::Header::new(

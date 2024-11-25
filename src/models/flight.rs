@@ -25,26 +25,6 @@ pub struct Flight {
     pub version: Option<i32>
 }
 
-// 座位状态枚举
-// #[derive(Debug, sqlx::Type)]
-// #[sqlx(type_name = "ENUM")]
-// pub enum SeatStatus {
-//     #[sqlx(rename = "AVAILABLE")]
-//     Available,
-//     #[sqlx(rename = "UNAVAILABLE")]
-//     Unavailable,
-//     #[sqlx(rename = "BOOKED")]
-//     Booked,
-// }
-
-// 座位信息模型
-// #[derive(Debug, sqlx::FromRow)]
-// pub struct SeatInfo {
-//     pub flight_id: i32,
-//     pub seat_number: i32,
-//     pub seat_status: SeatStatus,
-// }
-
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct FlightSearchQuery {
     pub departure_city: String,
@@ -69,4 +49,21 @@ pub struct FlightDetail {
     pub arrival_time: NaiveTime,
     pub available_tickets: i32,
     pub flight_date: NaiveDate,
+}
+
+// Seat Status Enum
+#[derive(Debug, sqlx::Type)]
+#[sqlx(type_name = "ENUM")]
+pub enum SeatStatus {
+    #[sqlx(rename = "AVAILABLE")]
+    Available,
+    #[sqlx(rename = "UNAVAILABLE")]
+    Unavailable,
+    #[sqlx(rename = "BOOKED")]
+    Booked,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct AvailableSeatsResponse {
+    pub available_seats: Vec<i32>
 }
