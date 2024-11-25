@@ -2,7 +2,6 @@
 extern crate rocket;
 extern crate rocket_okapi;
 
-mod db;
 mod models;
 mod routes;
 mod services;

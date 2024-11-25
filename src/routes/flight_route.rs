@@ -1,12 +1,11 @@
-use chrono::NaiveDate;
-use rocket::serde::json::Json;
-use rocket::State;
-use rocket::serde::json::{json, Value}; 
-use rocket_okapi::openapi; 
-use crate::models::flight::{FlightSearchQuery, FlightSearchResponse, AvailableSeatsResponse};
+use crate::models::flight::{AvailableSeatsResponse, FlightSearchQuery, FlightSearchResponse};
 use crate::services::flight_service::FlightService;
 use crate::utils::error::AppError;
 use crate::utils::jwt::AuthenticatedUser;
+use chrono::NaiveDate;
+use rocket::serde::json::Json;
+use rocket::State;
+use rocket_okapi::openapi;
 
 /// Search flights
 #[openapi(tag = "Flights")]
@@ -21,15 +20,16 @@ pub async fn search_flights(
 ) -> Result<Json<FlightSearchResponse>, AppError> {
     let departure_date = NaiveDate::parse_from_str(&departure_date, "%Y-%m-%d")
         .map_err(|_| AppError::BadRequest("Invalid departure date format".into()))?;
-    
-    let end_date = 
-    if let Some(date) = end_date {
-        Some(NaiveDate::parse_from_str(&date, "%Y-%m-%d")
-            .map_err(|_| AppError::BadRequest("Invalid end date format".into()))?)
+
+    let end_date = if let Some(date) = end_date {
+        Some(
+            NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+                .map_err(|_| AppError::BadRequest("Invalid end date format".into()))?,
+        )
     } else {
         None
     };
-    
+
     let query = FlightSearchQuery {
         departure_city,
         destination_city,
@@ -51,7 +51,9 @@ pub async fn get_available_seats(
 ) -> Result<Json<AvailableSeatsResponse>, AppError> {
     let flight_date = NaiveDate::parse_from_str(&flight_date, "%Y-%m-%d")
         .map_err(|_| AppError::BadRequest("Invalid flight date format".into()))?;
-    
-    let available_seats = flight_service.get_available_seats(flight_number, flight_date).await?;
+
+    let available_seats = flight_service
+        .get_available_seats(flight_number, flight_date)
+        .await?;
     Ok(Json(available_seats))
 }

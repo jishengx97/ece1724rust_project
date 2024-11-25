@@ -1,10 +1,11 @@
-use rocket::serde::json::{Json, Value};
-use rocket::State;
-use rocket_okapi::openapi;
-use serde_json::json;
-use crate::models::user::{RegisterResponse, UserLoginRequest, UserLoginResponse, UserRegistrationRequest};
+use crate::models::user::{
+    RegisterResponse, UserLoginRequest, UserLoginResponse, UserRegistrationRequest,
+};
 use crate::services::user_service::UserService;
 use crate::utils::error::AppError;
+use rocket::serde::json::Json;
+use rocket::State;
+use rocket_okapi::openapi;
 
 /// Register a new user
 #[openapi(tag = "Users")]
