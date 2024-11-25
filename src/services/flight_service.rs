@@ -1,8 +1,10 @@
-use crate::models::flight::{FlightSearchQuery, FlightSearchResponse, FlightDetail, AvailableSeatsResponse};
-use crate::utils::error::AppResult;
-use sqlx::MySqlPool;
-use sqlx::types::chrono::{NaiveDate, NaiveTime};
+use crate::models::flight::{
+    AvailableSeatsResponse, FlightDetail, FlightSearchQuery, FlightSearchResponse,
+};
 use crate::utils::error::AppError;
+use crate::utils::error::AppResult;
+use sqlx::types::chrono::{NaiveDate, NaiveTime};
+use sqlx::MySqlPool;
 
 pub struct FlightService {
     pool: MySqlPool,
@@ -14,7 +16,10 @@ impl FlightService {
     }
 
     // Search available flights
-    pub async fn search_flights(&self, query: FlightSearchQuery) -> AppResult<FlightSearchResponse> {
+    pub async fn search_flights(
+        &self,
+        query: FlightSearchQuery,
+    ) -> AppResult<FlightSearchResponse> {
         let flights = match query.end_date {
             Some(end_date) => {
                 // Search by date range
@@ -44,7 +49,7 @@ impl FlightService {
                 )
                 .fetch_all(&self.pool)
                 .await?
-            },
+            }
             None => {
                 // Search by single date
                 sqlx::query_as!(
@@ -78,8 +83,11 @@ impl FlightService {
         Ok(FlightSearchResponse { flights })
     }
 
-    pub async fn get_available_seats(&self, flight_number: i32, flight_date: NaiveDate) 
-        -> AppResult<AvailableSeatsResponse> {
+    pub async fn get_available_seats(
+        &self,
+        flight_number: i32,
+        flight_date: NaiveDate,
+    ) -> AppResult<AvailableSeatsResponse> {
         // Get flight id by flight number and flight date
         let flight = sqlx::query!(
             r#"
@@ -113,5 +121,10 @@ impl FlightService {
             .collect();
 
         Ok(AvailableSeatsResponse { available_seats })
+    }
+
+    // assume seat is available for now
+    pub async fn is_seat_available(&self, _flight_id: i32, _seat_number: i32) -> AppResult<bool> {
+        Ok(true)
     }
 }

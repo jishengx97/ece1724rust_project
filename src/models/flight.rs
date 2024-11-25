@@ -1,7 +1,7 @@
 use chrono::{NaiveDate, NaiveTime};
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, sqlx::FromRow)]
 pub struct FlightRoute {
@@ -13,16 +13,16 @@ pub struct FlightRoute {
     pub aircraft_id: i32,
     pub overbooking: Decimal,
     pub start_date: NaiveDate,
-    pub end_date: Option<NaiveDate>
+    pub end_date: Option<NaiveDate>,
 }
 
 #[derive(Debug, sqlx::FromRow)]
 pub struct Flight {
     pub flight_id: i32,
     pub flight_number: i32,
-    pub flight_date: NaiveDate,
+    pub flight_date: rocket::time::Date,
     pub available_tickets: i32,
-    pub version: Option<i32>
+    pub version: Option<i32>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -65,5 +65,5 @@ pub enum SeatStatus {
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct AvailableSeatsResponse {
-    pub available_seats: Vec<i32>
+    pub available_seats: Vec<i32>,
 }
