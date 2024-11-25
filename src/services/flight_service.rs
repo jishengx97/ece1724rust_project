@@ -1,7 +1,8 @@
-use crate::models::flight::{FlightSearchQuery, FlightSearchResponse, FlightDetail};
+use crate::models::flight::{FlightSearchQuery, FlightSearchResponse, FlightDetail, AvailableSeatsResponse};
 use crate::utils::error::AppResult;
 use sqlx::MySqlPool;
 use sqlx::types::chrono::{NaiveDate, NaiveTime};
+use crate::utils::error::AppError;
 
 pub struct FlightService {
     pool: MySqlPool,
@@ -75,5 +76,42 @@ impl FlightService {
         };
 
         Ok(FlightSearchResponse { flights })
+    }
+
+    pub async fn get_available_seats(&self, flight_number: i32, flight_date: NaiveDate) 
+        -> AppResult<AvailableSeatsResponse> {
+        // Get flight id by flight number and flight date
+        let flight = sqlx::query!(
+            r#"
+            SELECT flight_id 
+            FROM flight 
+            WHERE flight_number = ? AND flight_date = ?
+            "#,
+            flight_number,
+            flight_date
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Flight not found".into()))?;
+
+        // Get all available seats
+        let available_seats = sqlx::query!(
+            r#"
+            SELECT seat_number
+            FROM seat_info
+            WHERE flight_id = ? AND seat_status = 'AVAILABLE'
+            "#,
+            flight.flight_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Convert query result to Vec<i32>
+        let available_seats: Vec<i32> = available_seats
+            .into_iter()
+            .map(|row| row.seat_number)
+            .collect();
+
+        Ok(AvailableSeatsResponse { available_seats })
     }
 }
