@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate rocket;
-#[macro_use]
 extern crate rocket_okapi;
 
 mod db;
@@ -12,10 +11,11 @@ mod swagger;
 
 use dotenv::dotenv;
 use rocket::fairing::AdHoc;
-use rocket_okapi::settings::OpenApiSettings;
 use rocket_okapi::swagger_ui::*;
 use sqlx::MySqlPool;
 use rocket_okapi::openapi_get_routes;
+use crate::swagger::swagger_ui;
+
 
 #[launch]
 async fn rocket() -> _ {
@@ -28,21 +28,22 @@ async fn rocket() -> _ {
 
     // Initialize the user service
     let user_service = services::user_service::UserService::new(pool.clone());
-    
-    // Initialize OpenAPI settings
-    let _openapi_settings = OpenApiSettings::default();
-    
+    let flight_service = services::flight_service::FlightService::new(pool.clone());
+
     rocket::build()
+        .manage(flight_service)
         .mount(
             "/api",
             openapi_get_routes![
                 routes::user_route::register,
                 routes::user_route::login,
+                routes::flight_route::search_flights,
+
             ],
         )
         .mount(
             "/swagger",
-            make_swagger_ui(&swagger::swagger_ui()),
+            make_swagger_ui(&swagger_ui()),
         )
         .manage(user_service)
         .attach(AdHoc::on_response("CORS", |_, res| {

@@ -13,7 +13,7 @@ pub struct FlightRoute {
     pub aircraft_id: i32,
     pub overbooking: Decimal,
     pub start_date: NaiveDate,
-    pub end_date: Option<NaiveDate>,
+    pub end_date: Option<NaiveDate>
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -22,30 +22,36 @@ pub struct Flight {
     pub flight_number: i32,
     pub flight_date: NaiveDate,
     pub available_tickets: i32,
-    pub version: Option<i32>,  // 用于乐观锁
+    pub version: Option<i32>
 }
 
+// 座位状态枚举
+// #[derive(Debug, sqlx::Type)]
+// #[sqlx(type_name = "ENUM")]
+// pub enum SeatStatus {
+//     #[sqlx(rename = "AVAILABLE")]
+//     Available,
+//     #[sqlx(rename = "UNAVAILABLE")]
+//     Unavailable,
+//     #[sqlx(rename = "BOOKED")]
+//     Booked,
+// }
+
+// 座位信息模型
+// #[derive(Debug, sqlx::FromRow)]
+// pub struct SeatInfo {
+//     pub flight_id: i32,
+//     pub seat_number: i32,
+//     pub seat_status: SeatStatus,
+// }
+
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct FlightSearchRequest {
+pub struct FlightSearchQuery {
     pub departure_city: String,
     pub destination_city: String,
-    #[serde(flatten)]
-    pub date_criteria: FlightDateCriteria,
+    pub departure_date: NaiveDate,
+    pub end_date: Option<NaiveDate>,
 }
-
-// Support single date or date range
-#[derive(Debug, Deserialize, JsonSchema)]
-#[serde(untagged)]
-pub enum FlightDateCriteria {
-    Single {
-        departure_date: NaiveDate,
-    },
-    Range {
-        start_date: NaiveDate,
-        end_date: NaiveDate,
-    },
-}
-
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct FlightSearchResponse {

@@ -1,4 +1,4 @@
-use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
+use rocket_okapi::swagger_ui::SwaggerUIConfig;
 
 pub fn swagger_ui() -> SwaggerUIConfig {
     SwaggerUIConfig {

@@ -4,6 +4,7 @@ use rocket::request::{FromRequest, Outcome};
 use rocket::Request;
 use serde::{Deserialize, Serialize};
 use std::env;
+use rocket_okapi::request::OpenApiFromRequest;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -11,7 +12,7 @@ pub struct Claims {
     pub exp: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, OpenApiFromRequest)]
 pub struct AuthenticatedUser {
     pub user_id: i32,
 }
@@ -19,6 +20,7 @@ pub struct AuthenticatedUser {
 
 pub fn generate_token(user_id: i32) -> Result<String, jsonwebtoken::errors::Error> {
     let expiration = chrono::Utc::now()
+        // Set expiration time to 24 hours
         .checked_add_signed(chrono::Duration::hours(24))
         .expect("valid timestamp")
         .timestamp() as usize;

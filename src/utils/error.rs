@@ -28,6 +28,9 @@ pub enum AppError {
 
     #[error("Unprocessable: {0}")]
     Unprocessable(String),
+
+    #[error("Bad request: {0}")]
+    BadRequest(String),
 }
 
 // Convert sqlx::Error (database error) to AppError::DatabaseError
@@ -52,6 +55,7 @@ impl<'r> Responder<'r, 'static> for AppError {
             AppError::AuthError(_) => Status::Unauthorized,
             AppError::Conflict(_) => Status::Conflict,
             AppError::Unprocessable(_) => Status::UnprocessableEntity,
+            AppError::BadRequest(_) => Status::BadRequest,
         };
 
         let json = json!({

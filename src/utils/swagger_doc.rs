@@ -19,6 +19,7 @@ impl<'r> OpenApiResponderInner for AppError {
             (Status::NotFound, "NotFound", AppError::NotFound("Not Found".to_string())),
             (Status::Conflict, "Conflict", AppError::Conflict("Conflict".to_string())),
             (Status::InternalServerError, "InternalServerError", AppError::DatabaseError("Internal ServerError".to_string())),
+            (Status::UnprocessableEntity, "Unprocessable", AppError::Unprocessable("Unprocessable".to_string())),
         ];
 
         for (status, description, error) in error_responses {

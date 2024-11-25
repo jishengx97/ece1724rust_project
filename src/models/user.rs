@@ -9,22 +9,6 @@ pub struct User {
     pub role: String,
 }
 
-#[derive(Debug, sqlx::FromRow)]
-pub struct CustomerInfo {
-    pub id: i32,
-    pub name: String,
-    pub gender: Gender,
-}
-
-#[derive(Debug, sqlx::Type)]
-#[sqlx(type_name = "ENUM")]
-pub enum Gender {
-    #[sqlx(rename = "male")]
-    Male,
-    #[sqlx(rename = "female")]
-    Female,
-}
-
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct UserRegistrationRequest {
     pub username: String,
