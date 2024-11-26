@@ -3,6 +3,7 @@ use rust_decimal::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)]
 #[derive(Debug, sqlx::FromRow)]
 pub struct FlightRoute {
     pub flight_number: i32,
@@ -16,6 +17,7 @@ pub struct FlightRoute {
     pub end_date: Option<NaiveDate>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, sqlx::FromRow)]
 pub struct Flight {
     pub flight_id: i32,

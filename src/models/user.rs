@@ -3,6 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
+#[allow(dead_code)]
 #[derive(Debug, sqlx::FromRow)]
 pub struct User {
     pub id: i32,

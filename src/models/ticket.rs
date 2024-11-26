@@ -2,6 +2,7 @@ use chrono::NaiveDate;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)]
 #[derive(Debug, sqlx::FromRow)]
 pub struct Ticket {
     pub id: i32,
