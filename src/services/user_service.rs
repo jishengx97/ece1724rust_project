@@ -1,8 +1,9 @@
-use crate::models::user::{User, UserLoginRequest, UserRegistrationRequest, UserLoginResponse};
+use crate::models::user::{User, UserLoginRequest, UserLoginResponse, UserRegistrationRequest};
 use crate::utils::error::{AppError, AppResult};
 use crate::utils::jwt;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use sqlx::MySqlPool;
+use validator::Validate;
 
 pub struct UserService {
     pool: MySqlPool,
@@ -15,13 +16,16 @@ impl UserService {
 
     // Register a new user
     pub async fn register_user(&self, request: UserRegistrationRequest) -> AppResult<i32> {
+        // Validate the request
+        request
+            .validate()
+            .map_err(|e| AppError::ValidationError(format!("{:?}", e)))?;
+
         // Check if username already exists
-        let existing_user = sqlx::query!(
-            "SELECT id FROM user WHERE username = ?",
-            request.username
-        )
-        .fetch_optional(&self.pool)
-        .await?;
+        let existing_user =
+            sqlx::query!("SELECT id FROM user WHERE username = ?", request.username)
+                .fetch_optional(&self.pool)
+                .await?;
 
         if existing_user.is_some() {
             return Err(AppError::Conflict("Username already exists".into()));
@@ -36,6 +40,17 @@ impl UserService {
             "INSERT INTO user (username, password, role) VALUES (?, ?, 'USER')",
             request.username,
             hashed_password
+        )
+        .execute(&self.pool)
+        .await?;
+
+        let _customer_info_result = sqlx::query!(
+            "INSERT INTO customer_info (id, name, birth_date, gender) 
+            VALUES(?, ?, ?, ?)",
+            result.last_insert_id(),
+            request.name,
+            request.birth_date,
+            request.gender,
         )
         .execute(&self.pool)
         .await?;
@@ -63,8 +78,7 @@ impl UserService {
         }
 
         // Generate JWT token
-        let token = jwt::generate_token(user.id)
-            .map_err(|e| AppError::AuthError(e.to_string()))?;
+        let token = jwt::generate_token(user.id).map_err(|e| AppError::AuthError(e.to_string()))?;
 
         Ok(UserLoginResponse {
             token,
