@@ -28,6 +28,13 @@ pub struct TicketBookingResponse {
     pub booking_status: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SeatBookingRequest {
+    pub flight_number: String,
+    pub flight_date: chrono::NaiveDate,
+    pub seat_number: i32,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct BookingHistoryDetail {
     pub flight_number: i32,

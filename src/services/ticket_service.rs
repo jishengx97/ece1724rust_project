@@ -1,12 +1,13 @@
 use crate::models::flight::Flight;
 use crate::models::ticket::{
-    BookingHistoryDetail, BookingHistoryResponse, TicketBookingRequest, TicketBookingResponse,
+    BookingHistoryDetail, BookingHistoryResponse, TicketBookingRequest, TicketBookingResponse, SeatBookingRequest
 };
 use crate::services::flight_service::FlightService;
 use crate::utils::error::{AppError, AppResult};
 use chrono::{NaiveDate, NaiveTime};
 use sqlx::mysql::MySqlQueryResult;
 use sqlx::MySqlPool;
+use crate::models::flight::SeatStatus;
 
 pub struct TicketService {
     pool: MySqlPool,
@@ -27,7 +28,7 @@ impl TicketService {
         request: TicketBookingRequest,
     ) -> AppResult<TicketBookingResponse> {
         let mut tx = self.pool.begin().await?;
-
+       
         // get the flight information
         // TODO: it is assumed legal here
         let flight = sqlx::query_as!(
@@ -91,6 +92,8 @@ impl TicketService {
 
         tx.commit().await?;
 
+        // Todo: Update the available_tickets in flight table
+        // TODO: Update the seat_status in seat_info table
         Ok(TicketBookingResponse {
             ticket_id,
             flight_details: format!("Flight {} on {}", flight.flight_number, flight.flight_date),
@@ -99,6 +102,137 @@ impl TicketService {
         })
     }
 
+    pub async fn book_seat(
+        &self,
+        customer_id: i32,
+        flight_id: i32,
+        new_seat_number: i32,
+        old_seat_number: Option<i32>
+    ) -> AppResult<bool> {
+        let mut tx = self.pool.begin().await?;
+    
+        // println!("Start to book Seat for customer: {}, flight_id: {}, new_seat_number: {}, old_seat_number: {:?}", customer_id, flight_id, new_seat_number, old_seat_number);
+        let new_seat_status = sqlx::query!(
+            r#"
+            SELECT seat_status as "seat_status: SeatStatus"
+            FROM seat_info
+            WHERE flight_id = ? AND seat_number = ?
+            FOR UPDATE
+            "#,
+            flight_id,
+            new_seat_number
+        )
+        .fetch_optional(&mut *tx)
+        .await
+        .inspect_err(|e| println!("Get new seat status failed: {:?}", e))?;
+    
+        //println!("new_seat_status: {:?}", new_seat_status);
+        let new_seat_status = match new_seat_status {
+            Some(status) => status.seat_status,
+            None => return Err(AppError::ValidationError("The new seat is not found".to_string())),
+        };
+    
+        if new_seat_status != SeatStatus::Available {
+            return Err(AppError::ValidationError("The new seat is already booked or unavailable".to_string()));
+        }
+
+        //println!("old_seat_number: {:?}", old_seat_number);
+        if let Some(old_seat) = old_seat_number {
+            sqlx::query!(
+                r#"
+                UPDATE seat_info
+                SET seat_status = 'AVAILABLE'
+                WHERE flight_id = ? AND seat_number = ?
+                "#,
+                // SeatStatus::Available.to_string(),
+                flight_id,
+                old_seat
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        //println!("Updated the old seat to available");
+        sqlx::query!(
+            r#"
+            UPDATE seat_info
+            SET seat_status = ?
+            WHERE flight_id = ? AND seat_number = ?
+            "#,
+            SeatStatus::Booked.to_string(),
+            flight_id,
+            new_seat_number
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // println!("Updated the new seat to booked");
+
+        sqlx::query!(
+            r#"
+            UPDATE ticket
+            SET seat_number = ?
+            WHERE customer_id = ? AND flight_id = ?
+            "#,
+            new_seat_number,
+            customer_id,
+            flight_id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // println!("Updated the ticket to new seat");
+        tx.commit().await?;
+        Ok(true)
+    }
+    
+    pub async fn book_seat_for_ticket(
+        &self,
+        customer_id: i32,
+        request: SeatBookingRequest,
+    ) -> AppResult<bool> {
+        let mut tx = self.pool.begin().await?;
+
+        let flight = sqlx::query!(
+            r#"SELECT flight_id FROM flight 
+            WHERE flight_number = ? AND flight_date = ?"#,
+            request.flight_number,
+            request.flight_date
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let ticket = sqlx::query!(
+            r#"SELECT id, seat_number FROM ticket 
+            WHERE customer_id = ? AND flight_id = ?"#,
+            customer_id,
+            flight.flight_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        println!("ticket: {:?}", ticket);
+
+        let ticket = match ticket {
+            Some(t) => t,
+            None => return Err(AppError::BadRequest("Customer does not have a ticket for this flight".into())),
+        };
+
+        if let Some(current_seat) = ticket.seat_number {
+            if current_seat == request.seat_number {
+                return Err(AppError::BadRequest("Cannot book the same seat you already have".into()));
+            }
+        }
+
+        // book the seat
+        self.book_seat(
+            customer_id,
+            flight.flight_id,
+            request.seat_number,
+            ticket.seat_number
+        ).await
+    }
+    
     pub async fn get_history(&self, user_id: i32) -> AppResult<BookingHistoryResponse> {
         let rows = sqlx::query!(
             r#"
@@ -157,3 +291,4 @@ impl TicketService {
         Ok(BookingHistoryResponse { flights })
     }
 }
+
