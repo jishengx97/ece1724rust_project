@@ -2,6 +2,7 @@ use chrono::{NaiveDate, NaiveTime};
 use rust_decimal::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use strum_macros::Display;
 
 #[allow(dead_code)]
 #[derive(Debug, sqlx::FromRow)]
@@ -54,15 +55,15 @@ pub struct FlightDetail {
 }
 
 // Seat Status Enum
-#[derive(Debug, sqlx::Type)]
-#[sqlx(type_name = "ENUM")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Display, sqlx::Type)]
+#[sqlx(type_name = "varchar")]
 pub enum SeatStatus {
     #[sqlx(rename = "AVAILABLE")]
     Available,
-    #[sqlx(rename = "UNAVAILABLE")]
-    Unavailable,
     #[sqlx(rename = "BOOKED")]
     Booked,
+    #[sqlx(rename = "UNAVAILABLE")]
+    Unavailable
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
