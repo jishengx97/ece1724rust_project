@@ -1,4 +1,4 @@
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveTime};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -33,4 +33,20 @@ pub struct SeatBookingRequest {
     pub flight_number: String,
     pub flight_date: chrono::NaiveDate,
     pub seat_number: i32,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct BookingHistoryDetail {
+    pub flight_number: i32,
+    pub seat_number: String,
+    pub departure_city: String,
+    pub destination_city: String,
+    pub flight_date: NaiveDate,
+    pub departure_time: NaiveTime,
+    pub arrival_time: NaiveTime,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct BookingHistoryResponse {
+    pub flights: Vec<BookingHistoryDetail>,
 }

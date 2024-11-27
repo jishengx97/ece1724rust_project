@@ -1,5 +1,4 @@
-use crate::models::ticket::TicketBookingRequest;
-use crate::models::ticket::SeatBookingRequest;
+use crate::models::ticket::{BookingHistoryResponse, TicketBookingRequest, SeatBookingRequest};
 use crate::services::ticket_service::TicketService;
 use crate::utils::error::AppError;
 use crate::utils::jwt::AuthenticatedUser;
@@ -37,4 +36,14 @@ pub async fn book_seat_for_ticket(
         .await?;
 
     Ok(Json(json!({ "success": success })))
+}
+
+#[openapi(tag = "Book")]
+#[get("/history")]
+pub async fn get_history(
+    _auth: AuthenticatedUser,
+    ticket_service: &State<TicketService>,
+) -> Result<Json<BookingHistoryResponse>, AppError> {
+    let response = ticket_service.get_history(_auth.user_id).await?;
+    Ok(Json(response))
 }

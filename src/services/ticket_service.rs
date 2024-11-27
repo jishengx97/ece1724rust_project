@@ -1,7 +1,10 @@
 use crate::models::flight::Flight;
-use crate::models::ticket::{TicketBookingRequest, TicketBookingResponse, SeatBookingRequest};
+use crate::models::ticket::{
+    BookingHistoryDetail, BookingHistoryResponse, TicketBookingRequest, TicketBookingResponse, SeatBookingRequest
+};
 use crate::services::flight_service::FlightService;
 use crate::utils::error::{AppError, AppResult};
+use chrono::{NaiveDate, NaiveTime};
 use sqlx::mysql::MySqlQueryResult;
 use sqlx::MySqlPool;
 use crate::models::flight::SeatStatus;
@@ -222,6 +225,64 @@ impl TicketService {
             request.seat_number,
             ticket.seat_number
         ).await
+    }
+    
+    pub async fn get_history(&self, user_id: i32) -> AppResult<BookingHistoryResponse> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT 
+                f.flight_number, 
+                t.seat_number,
+                fr.departure_city, 
+                fr.destination_city, 
+                f.flight_date,
+                fr.departure_time, 
+                fr.arrival_time
+            FROM ticket t
+            INNER JOIN flight f ON t.flight_id = f.flight_id
+            INNER JOIN flight_route fr ON f.flight_number = fr.flight_number
+            WHERE t.customer_id = ?
+            ORDER BY f.flight_date DESC
+            "#,
+            user_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let flights: Vec<BookingHistoryDetail> = rows
+            .iter()
+            .map(|row| BookingHistoryDetail {
+                flight_number: row.flight_number,
+                seat_number: if let Some(s) = row.seat_number {
+                    s.to_string()
+                } else {
+                    String::from("Not Selected")
+                },
+                departure_city: row.departure_city.clone(),
+                destination_city: row.destination_city.clone(),
+                flight_date: NaiveDate::from_ymd_opt(
+                    row.flight_date.year() as i32,
+                    row.flight_date.month() as u32,
+                    row.flight_date.day() as u32,
+                )
+                .unwrap(),
+                departure_time: NaiveTime::from_hms_opt(
+                    row.departure_time.hour() as u32,
+                    row.departure_time.minute() as u32,
+                    row.departure_time.second() as u32,
+                )
+                .unwrap(),
+                arrival_time: NaiveTime::from_hms_opt(
+                    row.arrival_time.hour() as u32,
+                    row.arrival_time.minute() as u32,
+                    row.arrival_time.second() as u32,
+                )
+                .unwrap(),
+            })
+            .collect();
+
+        // Build the response
+        Ok(BookingHistoryResponse { flights })
     }
 }
 
