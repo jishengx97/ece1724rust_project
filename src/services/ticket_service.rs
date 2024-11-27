@@ -218,6 +218,12 @@ impl TicketService {
             None => return Err(AppError::BadRequest("Customer does not have a ticket for this flight".into())),
         };
 
+        if let Some(current_seat) = ticket.seat_number {
+            if current_seat == request.seat_number {
+                return Err(AppError::BadRequest("Cannot book the same seat you already have".into()));
+            }
+        }
+
         // book the seat
         self.book_seat(
             customer_id,
