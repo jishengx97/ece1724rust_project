@@ -42,6 +42,7 @@ async fn rocket() -> _ {
                 routes::flight_route::search_flights,
                 routes::flight_route::get_available_seats,
                 routes::ticket_route::book_ticket,
+                routes::ticket_route::get_history,
             ],
         )
         .mount("/swagger", make_swagger_ui(&swagger_ui()))

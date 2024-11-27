@@ -18,7 +18,7 @@ pub struct UserRegistrationRequest {
     pub password: String,
     pub name: String,
     pub birth_date: NaiveDate,
-    #[validate(custom(function = "validate_gender"))] // Custom gender validation
+    #[validate(custom(function = "validate_gender"))]
     pub gender: String,
 }
 
