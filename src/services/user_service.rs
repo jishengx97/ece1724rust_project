@@ -35,7 +35,7 @@ impl UserService {
         let hashed_password = hash(request.password.as_bytes(), DEFAULT_COST)
             .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
-        // 将 Role 转换为字符串
+        // Convert role to string for database insertion
         let role_str = match request.role {
             Role::Admin => "ADMIN",
             Role::User => "USER",
@@ -51,6 +51,7 @@ impl UserService {
         .execute(&self.pool)
         .await?;
 
+        // Insert customer info to customer_info table
         let _customer_info_result = sqlx::query!(
             "INSERT INTO customer_info (id, name, birth_date, gender) 
             VALUES(?, ?, ?, ?)",
