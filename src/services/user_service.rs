@@ -1,4 +1,4 @@
-use crate::models::user::{User, UserLoginRequest, UserLoginResponse, UserRegistrationRequest};
+use crate::models::user::{User, UserLoginRequest, UserLoginResponse, UserRegistrationRequest, Role};
 use crate::utils::error::{AppError, AppResult};
 use crate::utils::jwt;
 use bcrypt::{hash, verify, DEFAULT_COST};
@@ -35,11 +35,18 @@ impl UserService {
         let hashed_password = hash(request.password.as_bytes(), DEFAULT_COST)
             .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
-        // Insert user
+        // 将 Role 转换为字符串
+        let role_str = match request.role {
+            Role::Admin => "ADMIN",
+            Role::User => "USER",
+        };
+
+        // Insert user with role
         let result = sqlx::query!(
-            "INSERT INTO user (username, password, role) VALUES (?, ?, 'USER')",
+            "INSERT INTO user (username, password, role) VALUES (?, ?, ?)",
             request.username,
-            hashed_password
+            hashed_password,
+            role_str
         )
         .execute(&self.pool)
         .await?;
