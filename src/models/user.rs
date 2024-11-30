@@ -12,6 +12,32 @@ pub struct User {
     pub role: String,
 }
 
+#[derive(Debug, JsonSchema, PartialEq)]
+pub enum Role {
+    User,
+    Admin,
+}
+
+impl<'de> Deserialize<'de> for Role {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.to_lowercase().as_str() {
+            "user" => Ok(Role::User),
+            "admin" => Ok(Role::Admin),
+            _ => Err(serde::de::Error::custom("Invalid role: must be 'user' or 'admin'")),
+        }
+    }
+}
+
+impl Default for Role {
+    fn default() -> Self {
+        Role::User
+    }
+}
+
 #[derive(Debug, Validate, Deserialize, JsonSchema)]
 pub struct UserRegistrationRequest {
     pub username: String,
@@ -20,6 +46,8 @@ pub struct UserRegistrationRequest {
     pub birth_date: NaiveDate,
     #[validate(custom(function = "validate_gender"))]
     pub gender: String,
+    #[serde(default)]
+    pub role: Role,
 }
 
 fn validate_gender(gender: &str) -> Result<(), ValidationError> {
