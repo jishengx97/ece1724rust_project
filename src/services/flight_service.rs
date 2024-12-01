@@ -21,6 +21,7 @@ impl FlightService {
         search_query: FlightSearchQuery,
     ) -> AppResult<FlightSearchResponse> {
         let flights = match search_query.end_date {
+            // If end date is provided, search by date range
             Some(end_date) => {
                 // Search by date range
                 sqlx::query_as!(
@@ -50,8 +51,8 @@ impl FlightService {
                 .fetch_all(&self.pool)
                 .await?
             }
+            // If end date is not provided, search by single date
             None => {
-                // Search by single date
                 sqlx::query_as!(
                     FlightDetail,
                     r#"
