@@ -18,9 +18,9 @@ impl FlightService {
     // Search available flights
     pub async fn search_flights(
         &self,
-        query: FlightSearchQuery,
+        search_query: FlightSearchQuery,
     ) -> AppResult<FlightSearchResponse> {
-        let flights = match query.end_date {
+        let flights = match search_query.end_date {
             Some(end_date) => {
                 // Search by date range
                 sqlx::query_as!(
@@ -42,9 +42,9 @@ impl FlightService {
                     AND f.flight_date BETWEEN ? AND ?
                     AND f.available_tickets > 0
                     "#,
-                    query.departure_city,
-                    query.destination_city,
-                    query.departure_date,
+                    search_query.departure_city,
+                    search_query.destination_city,
+                    search_query.departure_date,
                     end_date
                 )
                 .fetch_all(&self.pool)
@@ -71,9 +71,9 @@ impl FlightService {
                     AND f.flight_date = ?
                     AND f.available_tickets > 0
                     "#,
-                    query.departure_city,
-                    query.destination_city,
-                    query.departure_date
+                    search_query.departure_city,
+                    search_query.destination_city,
+                    search_query.departure_date
                 )
                 .fetch_all(&self.pool)
                 .await?
