@@ -109,81 +109,94 @@ impl TicketService {
         new_seat_number: i32,
         old_seat_number: Option<i32>
     ) -> AppResult<bool> {
-        let mut tx = self.pool.begin().await?;
-    
-        // println!("Start to book Seat for customer: {}, flight_id: {}, new_seat_number: {}, old_seat_number: {:?}", customer_id, flight_id, new_seat_number, old_seat_number);
-        let new_seat_status = sqlx::query!(
-            r#"
-            SELECT seat_status as "seat_status: SeatStatus"
-            FROM seat_info
-            WHERE flight_id = ? AND seat_number = ?
-            FOR UPDATE
-            "#,
-            flight_id,
-            new_seat_number
-        )
-        .fetch_optional(&mut *tx)
-        .await
-        .inspect_err(|e| println!("Get new seat status failed: {:?}", e))?;
-    
-        //println!("new_seat_status: {:?}", new_seat_status);
-        let new_seat_status = match new_seat_status {
-            Some(status) => status.seat_status,
-            None => return Err(AppError::ValidationError("The new seat is not found".to_string())),
-        };
-    
-        if new_seat_status != SeatStatus::Available {
-            return Err(AppError::ValidationError("The new seat is already booked or unavailable".to_string()));
-        }
+        let mut retries = 0;
+        let max_retries = 3;
 
-        //println!("old_seat_number: {:?}", old_seat_number);
-        if let Some(old_seat) = old_seat_number {
-            sqlx::query!(
+        while retries < max_retries {
+            let mut tx = self.pool.begin().await?;
+
+            // get the new seat information
+            let new_seat_info = sqlx::query!(
                 r#"
-                UPDATE seat_info
-                SET seat_status = 'AVAILABLE'
+                SELECT seat_status as "seat_status: SeatStatus", version
+                FROM seat_info
                 WHERE flight_id = ? AND seat_number = ?
                 "#,
-                // SeatStatus::Available.to_string(),
                 flight_id,
-                old_seat
+                new_seat_number
+            )
+            .fetch_optional(&mut *tx)
+            .await?;
+
+            let new_seat_info = match new_seat_info {
+                Some(info) => info,
+                None => return Err(AppError::ValidationError("The new seat is not found".to_string())),
+            };
+
+            if new_seat_info.seat_status != SeatStatus::Available {
+                return Err(AppError::ValidationError("The new seat is already booked or unavailable".to_string()));
+            }
+
+            // update the new seat information
+            let update_result = sqlx::query!(
+                r#"
+                UPDATE seat_info
+                SET seat_status = ?,
+                    version = version + 1
+                WHERE flight_id = ? 
+                AND seat_number = ? 
+                AND version = ?
+                AND seat_status = 'AVAILABLE'
+                "#,
+                SeatStatus::Booked.to_string(),
+                flight_id,
+                new_seat_number,
+                new_seat_info.version
             )
             .execute(&mut *tx)
             .await?;
+
+            if update_result.rows_affected() == 0 {
+                tx.rollback().await?;
+                retries += 1;
+                continue;
+            }
+
+            // update the old seat information
+            if let Some(old_seat) = old_seat_number {
+                sqlx::query!(
+                    r#"
+                    UPDATE seat_info
+                    SET seat_status = 'AVAILABLE',
+                        version = version + 1
+                    WHERE flight_id = ? AND seat_number = ?
+                    "#,
+                    flight_id,
+                    old_seat
+                )
+                .execute(&mut *tx)
+                .await?;
+            }
+
+            // update the ticket information
+            sqlx::query!(
+                r#"
+                UPDATE ticket
+                SET seat_number = ?
+                WHERE customer_id = ? AND flight_id = ?
+                "#,
+                new_seat_number,
+                customer_id,
+                flight_id
+            )
+            .execute(&mut *tx)
+            .await?;
+
+            tx.commit().await?;
+            return Ok(true);
         }
 
-        //println!("Updated the old seat to available");
-        sqlx::query!(
-            r#"
-            UPDATE seat_info
-            SET seat_status = ?
-            WHERE flight_id = ? AND seat_number = ?
-            "#,
-            SeatStatus::Booked.to_string(),
-            flight_id,
-            new_seat_number
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        // println!("Updated the new seat to booked");
-
-        sqlx::query!(
-            r#"
-            UPDATE ticket
-            SET seat_number = ?
-            WHERE customer_id = ? AND flight_id = ?
-            "#,
-            new_seat_number,
-            customer_id,
-            flight_id
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        // println!("Updated the ticket to new seat");
-        tx.commit().await?;
-        Ok(true)
+        Err(AppError::Conflict("Failed to book seat after maximum retries".into()))
     }
     
     pub async fn book_seat_for_ticket(
@@ -191,15 +204,13 @@ impl TicketService {
         customer_id: i32,
         request: SeatBookingRequest,
     ) -> AppResult<bool> {
-        let mut tx = self.pool.begin().await?;
-
         let flight = sqlx::query!(
             r#"SELECT flight_id FROM flight 
             WHERE flight_number = ? AND flight_date = ?"#,
             request.flight_number,
             request.flight_date
         )
-        .fetch_one(&mut *tx)
+        .fetch_one(&self.pool)
         .await?;
 
         let ticket = sqlx::query!(
@@ -208,7 +219,7 @@ impl TicketService {
             customer_id,
             flight.flight_id
         )
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&self.pool)
         .await?;
 
         println!("ticket: {:?}", ticket);

@@ -92,9 +92,10 @@ create table flight
 -- Table flight seat info
 create table seat_info
 (
-    flight_id   int                                                          not null,
-    seat_number int                                                          not null,
-    seat_status enum ('AVAILABLE', 'UNAVAILABLE', 'BOOKED') default 'BOOKED' not null,
+    flight_id   int                                                             not null,
+    seat_number int                                                             not null,
+    seat_status enum ('AVAILABLE', 'UNAVAILABLE', 'BOOKED') default 'AVAILABLE' not null,
+    version     int                                         default 0           not null,
     constraint seat_info_flight_id_seat_number_uindex
         unique (flight_id, seat_number),
     constraint seat_info_flight_flight_id_fk
