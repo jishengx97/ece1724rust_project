@@ -1,13 +1,14 @@
 use crate::models::flight::Flight;
+use crate::models::flight::SeatStatus;
 use crate::models::ticket::{
-    BookingHistoryDetail, BookingHistoryResponse, TicketBookingRequest, TicketBookingResponse, SeatBookingRequest
+    BookingHistoryDetail, BookingHistoryResponse, SeatBookingRequest, TicketBookingRequest,
+    TicketBookingResponse,
 };
 use crate::services::flight_service::FlightService;
 use crate::utils::error::{AppError, AppResult};
 use chrono::{NaiveDate, NaiveTime};
 use sqlx::mysql::MySqlQueryResult;
 use sqlx::MySqlPool;
-use crate::models::flight::SeatStatus;
 
 pub struct TicketService {
     pool: MySqlPool,
@@ -28,7 +29,7 @@ impl TicketService {
         request: TicketBookingRequest,
     ) -> AppResult<TicketBookingResponse> {
         let mut tx = self.pool.begin().await?;
-       
+
         // get the flight information
         // TODO: it is assumed legal here
         let flight = sqlx::query_as!(
@@ -107,7 +108,7 @@ impl TicketService {
         customer_id: i32,
         flight_id: i32,
         new_seat_number: i32,
-        old_seat_number: Option<i32>
+        old_seat_number: Option<i32>,
     ) -> AppResult<bool> {
         let mut retries = 0;
         let max_retries = 3;
@@ -130,11 +131,17 @@ impl TicketService {
 
             let new_seat_info = match new_seat_info {
                 Some(info) => info,
-                None => return Err(AppError::ValidationError("The new seat is not found".to_string())),
+                None => {
+                    return Err(AppError::ValidationError(
+                        "The new seat is not found".to_string(),
+                    ))
+                }
             };
 
             if new_seat_info.seat_status != SeatStatus::Available {
-                return Err(AppError::ValidationError("The new seat is already booked or unavailable".to_string()));
+                return Err(AppError::ValidationError(
+                    "The new seat is already booked or unavailable".to_string(),
+                ));
             }
 
             // update the new seat information
@@ -196,9 +203,11 @@ impl TicketService {
             return Ok(true);
         }
 
-        Err(AppError::Conflict("Failed to book seat after maximum retries".into()))
+        Err(AppError::Conflict(
+            "Failed to book seat after maximum retries".into(),
+        ))
     }
-    
+
     pub async fn book_seat_for_ticket(
         &self,
         customer_id: i32,
@@ -226,12 +235,18 @@ impl TicketService {
 
         let ticket = match ticket {
             Some(t) => t,
-            None => return Err(AppError::BadRequest("Customer does not have a ticket for this flight".into())),
+            None => {
+                return Err(AppError::BadRequest(
+                    "Customer does not have a ticket for this flight".into(),
+                ))
+            }
         };
 
         if let Some(current_seat) = ticket.seat_number {
             if current_seat == request.seat_number {
-                return Err(AppError::BadRequest("Cannot book the same seat you already have".into()));
+                return Err(AppError::BadRequest(
+                    "Cannot book the same seat you already have".into(),
+                ));
             }
         }
 
@@ -240,10 +255,11 @@ impl TicketService {
             customer_id,
             flight.flight_id,
             request.seat_number,
-            ticket.seat_number
-        ).await
+            ticket.seat_number,
+        )
+        .await
     }
-    
+
     pub async fn get_history(&self, user_id: i32) -> AppResult<BookingHistoryResponse> {
         let rows = sqlx::query!(
             r#"
@@ -302,4 +318,3 @@ impl TicketService {
         Ok(BookingHistoryResponse { flights })
     }
 }
-
