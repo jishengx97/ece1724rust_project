@@ -4,23 +4,17 @@ use crate::models::ticket::{
     BookingHistoryDetail, BookingHistoryResponse, SeatBookingRequest, TicketBookingRequest,
     TicketBookingResponse,
 };
-use crate::services::flight_service::FlightService;
 use crate::utils::error::{AppError, AppResult};
 use chrono::{NaiveDate, NaiveTime};
-use sqlx::mysql::MySqlQueryResult;
 use sqlx::MySqlPool;
 
 pub struct TicketService {
     pool: MySqlPool,
-    flight_service: FlightService,
 }
 
 impl TicketService {
     pub fn new(pool: MySqlPool) -> Self {
-        TicketService {
-            flight_service: FlightService::new(pool.clone()),
-            pool,
-        }
+        TicketService { pool }
     }
 
     pub async fn book_ticket(
@@ -28,79 +22,151 @@ impl TicketService {
         user_id: i32,
         request: TicketBookingRequest,
     ) -> AppResult<TicketBookingResponse> {
-        let mut tx = self.pool.begin().await?;
-
         // get the flight information
         // TODO: it is assumed legal here
-        let flight = sqlx::query_as!(
-            Flight,
-            r#"SELECT flight_id, flight_number, flight_date, available_tickets, version 
-            FROM flight WHERE flight_number = ? AND flight_date = ? FOR UPDATE"#,
+
+        // TODO: do not allow re-booking the same flight for now
+        let existing_ticket = sqlx::query!(
+            r#"SELECT id, seat_number FROM ticket 
+            WHERE customer_id = ? 
+            AND flight_number = ?
+            AND flight_date = ?"#,
+            user_id,
             request.flight_number,
             request.flight_date
         )
-        .fetch_one(&mut *tx)
+        .fetch_optional(&self.pool)
         .await?;
 
-        println!("Searched flight {}!", flight.flight_id);
+        match existing_ticket {
+            Some(_) => {
+                return Err(AppError::BadRequest(
+                    "Cannot re-book the same flight".to_string(),
+                ))
+            }
+            None => {}
+        };
 
-        // TODO: check the legality of the preferred seat, even if it's a provided value
-        // check if the preferred seat is available
-        if let Some(seat) = request.preferred_seat {
-            if !self
-                .flight_service
-                .is_seat_available(request.flight_number, seat)
-                .await?
-            {
-                return Err(AppError::Conflict("Seat is not available".into()));
+        let mut retries = 0;
+        let max_retries = 3;
+
+        let mut flight: Flight;
+
+        loop {
+            flight = sqlx::query_as!(
+                Flight,
+                r#"
+                SELECT flight_id, flight_number, flight_date, available_tickets, version 
+                FROM flight 
+                WHERE flight_number = ? 
+                AND flight_date = ?
+                "#,
+                request.flight_number,
+                request.flight_date
+            )
+            .fetch_one(&self.pool)
+            .await?;
+
+            println!("Searched flight {}!", flight.flight_id);
+
+            if flight.available_tickets == 0 {
+                return Err(AppError::ValidationError(
+                    "This flight is fully booked.".to_string(),
+                ));
+            }
+
+            // Create a ticket for the user first, and worry about the seat later.
+            // We book a ticket for the user regardless of whether the preferred seat is available
+            let mut tx = self.pool.begin().await?;
+
+            let update_result = sqlx::query!(
+                r#"
+                UPDATE flight
+                set available_tickets = available_tickets - 1, 
+                    version = version + 1
+                where flight_id = ?
+                AND version = ?
+                "#,
+                flight.flight_id,
+                flight.version,
+            )
+            .execute(&mut *tx)
+            .await?;
+
+            if update_result.rows_affected() == 0 {
+                tx.rollback().await?;
+                retries += 1;
+
+                if retries > max_retries {
+                    break;
+                }
+            } else {
+                tx.commit().await?;
+                break;
             }
         }
 
-        // everything is legal, create the ticket
-        let result: MySqlQueryResult;
-        if let Some(seat) = request.preferred_seat {
-            result = sqlx::query!(
-                r#"
-                INSERT INTO ticket (customer_id, flight_id, seat_number, flight_date, flight_number)
-                VALUES (?, ?, ?, ?, ?)
-                "#,
-                user_id,
-                flight.flight_id,
-                seat,
-                flight.flight_date,
-                flight.flight_number
-            )
-            .execute(&mut *tx)
-            .await?;
-        } else {
-            result = sqlx::query!(
-                r#"
-                INSERT INTO ticket (customer_id, flight_id, flight_date, flight_number)
-                VALUES (?, ?, ?, ?)
-                "#,
-                user_id,
-                flight.flight_id,
-                flight.flight_date,
-                flight.flight_number
-            )
-            .execute(&mut *tx)
-            .await?;
+        if retries > max_retries {
+            // We did not success
+            return Err(AppError::ValidationError(
+                "We failed to book your flight at this time, please retry.".to_string(),
+            ));
         }
 
-        let ticket_id = result.last_insert_id() as i32;
+        let result = sqlx::query!(
+            r#"
+            INSERT INTO ticket (customer_id, flight_id, flight_date, flight_number)
+            VALUES (?, ?, ?, ?)
+            "#,
+            user_id,
+            flight.flight_id,
+            flight.flight_date,
+            flight.flight_number
+        )
+        .execute(&self.pool)
+        .await?;
 
+        let ticket_id = result.last_insert_id() as i32;
         println!("inserted {}", ticket_id);
 
-        tx.commit().await?;
-
-        // Todo: Update the available_tickets in flight table
-        // TODO: Update the seat_status in seat_info table
-        Ok(TicketBookingResponse {
+        let response = TicketBookingResponse {
             ticket_id,
             flight_details: format!("Flight {} on {}", flight.flight_number, flight.flight_date),
-            seat_number: request.preferred_seat,
-            booking_status: "Confirmed".to_string(),
-        })
+            seat_number: None,
+            booking_status: "Confirmed.".to_string(),
+        };
+
+        // Successfully booked a ticket, now do the seat part.
+        match request.preferred_seat {
+            Some(prefered_seat) => {
+                let book_seat_result = self
+                    .book_seat_for_ticket(
+                        user_id,
+                        SeatBookingRequest {
+                            flight_number: flight.flight_number.to_string(),
+                            flight_date: NaiveDate::from_ymd_opt(
+                                flight.flight_date.year() as i32,
+                                flight.flight_date.month() as u32,
+                                flight.flight_date.day() as u32,
+                            )
+                            .unwrap(),
+                            seat_number: prefered_seat,
+                        },
+                    )
+                    .await;
+                match book_seat_result {
+                    Ok(_) => return Ok(TicketBookingResponse {
+                        seat_number: Some(prefered_seat),
+                        ..response
+                    }),
+                    Err(_) => return Ok(TicketBookingResponse {
+                        booking_status: "Confirmed booking, however the preferred seat is currently unavaiable, please try again later.".to_string(),
+                        ..response
+                    }),
+                }
+            }
+            None => return Ok(response),
+        }
     }
 
     pub async fn book_seat(

@@ -123,9 +123,4 @@ impl FlightService {
 
         Ok(AvailableSeatsResponse { available_seats })
     }
-
-    // assume seat is available for now
-    pub async fn is_seat_available(&self, _flight_id: i32, _seat_number: i32) -> AppResult<bool> {
-        Ok(true)
-    }
 }
