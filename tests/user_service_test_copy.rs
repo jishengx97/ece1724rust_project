@@ -1,3 +1,5 @@
+// Just duplicate the test from user_service_test.rs to test multiple test in different classes
+// TODO: Delete this test after we add more tests
 use airline_booking_system::{
     models::user::{Role, UserRegistrationRequest},
     services::user_service::UserService,
@@ -7,7 +9,6 @@ use chrono::NaiveDate;
 use sqlx::mysql::MySqlPool as Pool;
 use test_context::{AsyncTestContext, test_context};
 use async_trait::async_trait;
-
 mod common {
     pub mod test_utils;
 }
@@ -105,7 +106,6 @@ async fn test_user_registration_success(ctx: &UserServiceContext) -> Result<(), 
 }
 
 // Just duplicate the test above to test multiple test in one class
-// TODO: Delete this test after we add more tests
 #[test_context(UserServiceContext)]
 #[tokio::test]
 async fn test_user_registration_success_two(ctx: &UserServiceContext) -> Result<(), AppError> {

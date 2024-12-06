@@ -5,17 +5,21 @@ use sqlx::mysql::MySqlPoolOptions;
 use sqlx::Error;
 use std::env;
 use tokio::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 static TEST_DB: OnceCell<Mutex<Option<TestDb>>> = OnceCell::new();
+static DB_NAME: OnceCell<String> = OnceCell::new();
 
+#[derive(Debug)]
 pub struct TestDb {
     pub pool: Pool,
     pub db_name: String,
 }
 
+// Create a connection pool without a database, used to create a new database
 async fn create_connection_pool_without_db() -> Result<Pool, Error> {
     dotenv().ok();
-    let db_url = env::var("DATABASE_URL")
+    let db_url = env::var("ADMIN_DATABASE_URL")
         .expect("DATABASE_URL must be set in .env file");
     
     let base_url = db_url.split("/").collect::<Vec<&str>>()[..3].join("/");
@@ -26,9 +30,10 @@ async fn create_connection_pool_without_db() -> Result<Pool, Error> {
         .await
 }
 
+// Create a connection pool with a test database
 async fn create_connection_pool_with_db(db_name: &str) -> Result<Pool, Error> {
     dotenv().ok();
-    let db_url = env::var("DATABASE_URL")
+    let db_url = env::var("ADMIN_DATABASE_URL")
         .expect("DATABASE_URL must be set in .env file");
     
     let base_url = db_url.split("/").collect::<Vec<&str>>()[..3].join("/");
@@ -40,32 +45,62 @@ async fn create_connection_pool_with_db(db_name: &str) -> Result<Pool, Error> {
 }
 
 impl TestDb {
+    // Get the database instance - Setup function to initialize the test database for each test
     pub async fn get_instance() -> Result<Pool, Error> {
-        let test_db = TEST_DB.get_or_init(|| {
-            Mutex::new(None)
-        });
+        println!("Attempting to get database instance");
         
-        let mut test_db_guard = test_db.lock().await;
+        // Get the database instance - Setup function to initialize the test database for each test
+        let test_db = TEST_DB.get_or_init(|| Mutex::new(None));
+        let mut guard = test_db.lock().await;
         
-        if test_db_guard.is_none() {
-            let db = Self::setup_database().await?;
-            *test_db_guard = Some(db);
+        // If the database instance already exists, return it.
+        // Avoid creating a new database instance for each test
+        if let Some(db) = guard.as_ref() {
+            println!("Returning existing pool");
+            return Ok(db.pool.clone());
         }
-        
-        Ok(test_db_guard.as_ref().unwrap().pool.clone())
+
+        // If no database exists, create a new database instance for testing (Only create one database for all tests in one run)
+        println!("Creating new database instance");
+        let db = Self::setup_database().await?;
+        let pool = db.pool.clone();
+        *guard = Some(db);
+        Ok(pool)
     }
 
+    // Setup function to initialize the test database for each test
     async fn setup_database() -> Result<Self, Error> {
-        let db_name = format!("airline_test_{}", chrono::Utc::now().timestamp());
+
+        // Create a unique database name by timestamp for each test
+        let db_name = DB_NAME.get_or_init(|| {
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            let name = format!("airline_test_{}", timestamp);
+            println!("Generated database name: {}", name);
+            name
+        }).clone();
+
+        println!("Setting up database: {}", db_name);
         let admin_pool = create_connection_pool_without_db().await?;
         
+        // Drop the existing database if it exists (Looks like this is not necessary, comment out first)
+        // println!("Dropping existing database if exists");
+        // sqlx::query(&format!("DROP DATABASE IF EXISTS {}", db_name))
+        //     .execute(&admin_pool)
+        //     .await?;
+            
+        println!("Creating fresh database");
         sqlx::query(&format!("CREATE DATABASE {}", db_name))
             .execute(&admin_pool)
             .await?;
-        
+            
+        // Create a connection pool with the new database
         let pool = create_connection_pool_with_db(&db_name).await?;
-        
+        println!("Initializing tables");
         Self::create_tables(&pool).await?;
+        println!("Inserting initial data");
         Self::insert_initial_data(&pool).await?;
         
         Ok(Self { pool, db_name })
@@ -73,7 +108,6 @@ impl TestDb {
 
     async fn create_tables(pool: &Pool) -> Result<(), Error> {
         let tables = vec![
-            // 创建aircraft表
             "CREATE TABLE IF NOT EXISTS aircraft (
                 aircraft_id INT NOT NULL PRIMARY KEY,
                 capacity INT NOT NULL
@@ -180,9 +214,13 @@ impl TestDb {
         Ok(())
     }
 
+    //TODO: Maybe add more functions to help setup to create default test data
+
+    // Teardown function to drop database after test run (not after each test)
     pub async fn cleanup_database() -> Result<(), Error> {
         if let Some(test_db) = TEST_DB.get() {
             if let Some(db) = test_db.lock().await.take() {
+                println!("Dropping database: {}", db.db_name);
                 let admin_pool = create_connection_pool_without_db().await?;
                 sqlx::query(&format!("DROP DATABASE IF EXISTS {}", db.db_name))
                     .execute(&admin_pool)
