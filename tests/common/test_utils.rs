@@ -12,7 +12,6 @@ static DB_NAME: OnceCell<String> = OnceCell::new();
 
 #[derive(Debug)]
 pub struct TestDb {
-    pub pool: Pool,
     pub db_name: String,
 }
 
@@ -39,7 +38,7 @@ async fn create_connection_pool_with_db(db_name: &str) -> Result<Pool, Error> {
     let base_url = db_url.split("/").collect::<Vec<&str>>()[..3].join("/");
     
     MySqlPoolOptions::new()
-        .max_connections(10)
+        .max_connections(5)
         .connect(&format!("{}/{}", base_url, db_name))
         .await
 }
@@ -47,25 +46,23 @@ async fn create_connection_pool_with_db(db_name: &str) -> Result<Pool, Error> {
 impl TestDb {
     // Get the database instance - Setup function to initialize the test database for each test
     pub async fn get_instance() -> Result<Pool, Error> {
-        println!("Attempting to get database instance");
-        
-        // Get the database instance - Setup function to initialize the test database for each test
+        // Try to get the database instance
         let test_db = TEST_DB.get_or_init(|| Mutex::new(None));
         let mut guard = test_db.lock().await;
         
-        // If the database instance already exists, return it.
-        // Avoid creating a new database instance for each test
-        if let Some(db) = guard.as_ref() {
-            println!("Returning existing pool");
-            return Ok(db.pool.clone());
+        // If the database instance does not exist, create it
+        if guard.is_none() {
+            println!("Creating new database instance");
+            *guard = Some(Self::setup_database().await?);
         }
-
-        // If no database exists, create a new database instance for testing (Only create one database for all tests in one run)
-        println!("Creating new database instance");
-        let db = Self::setup_database().await?;
-        let pool = db.pool.clone();
-        *guard = Some(db);
-        Ok(pool)
+        
+        // Save the database name
+        let db_name = guard.as_ref().unwrap().db_name.clone();
+        drop(guard);
+        
+        // Create a new connection pool for each test
+        println!("Creating new connection pool");
+        create_connection_pool_with_db(&db_name).await
     }
 
     // Setup function to initialize the test database for each test
@@ -84,12 +81,6 @@ impl TestDb {
 
         println!("Setting up database: {}", db_name);
         let admin_pool = create_connection_pool_without_db().await?;
-        
-        // Drop the existing database if it exists (Looks like this is not necessary, comment out first)
-        // println!("Dropping existing database if exists");
-        // sqlx::query(&format!("DROP DATABASE IF EXISTS {}", db_name))
-        //     .execute(&admin_pool)
-        //     .await?;
             
         println!("Creating fresh database");
         sqlx::query(&format!("CREATE DATABASE {}", db_name))
@@ -103,7 +94,7 @@ impl TestDb {
         println!("Inserting initial data");
         Self::insert_initial_data(&pool).await?;
         
-        Ok(Self { pool, db_name })
+        Ok(Self { db_name })
     }
 
     async fn create_tables(pool: &Pool) -> Result<(), Error> {
@@ -217,14 +208,32 @@ impl TestDb {
     //TODO: Maybe add more functions to help setup to create default test data
 
     // Teardown function to drop database after test run (not after each test)
-    pub async fn cleanup_database() -> Result<(), Error> {
-        if let Some(test_db) = TEST_DB.get() {
-            if let Some(db) = test_db.lock().await.take() {
-                println!("Dropping database: {}", db.db_name);
-                let admin_pool = create_connection_pool_without_db().await?;
-                sqlx::query(&format!("DROP DATABASE IF EXISTS {}", db.db_name))
-                    .execute(&admin_pool)
-                    .await?;
+    pub fn cleanup_database_sync() -> Result<(), Box<dyn std::error::Error>> {
+        dotenv().ok();
+        
+        // Use .env file to get the admin database url
+        let db_url = env::var("ADMIN_DATABASE_URL")
+            .expect("DATABASE_URL must be set in .env file");
+        let url_parts: Vec<&str> = db_url.split("://").nth(1).unwrap().split("@").collect();
+        let auth = url_parts[0].split(":").collect::<Vec<&str>>();
+        let username = auth[0];
+        let password = auth[1];
+        
+        // Get the database name and drop the database
+        if let Some(db_name) = DB_NAME.get() {
+            let output = std::process::Command::new("mysql")
+                .arg("-u")
+                .arg(username)
+                .arg(format!("-p{}", password))
+                .arg("-e")
+                .arg(format!("DROP DATABASE IF EXISTS {};", db_name))
+                .output()?;
+
+            if !output.status.success() {
+                return Err(format!(
+                    "Failed to drop test database: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ).into());
             }
         }
         Ok(())

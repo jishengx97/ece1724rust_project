@@ -23,15 +23,9 @@ struct UserServiceContext {
 // Teardown function to clean up the test database after all tests are run
 #[dtor]
 fn cleanup() {
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async {
-        println!("Cleaning up test database...");
-        if let Err(e) = TestDb::cleanup_database().await {
-            eprintln!("Failed to cleanup test database: {}", e);
-        } else {
-            println!("Test database cleaned up successfully");
-        }
-    });
+    if let Err(e) = TestDb::cleanup_database_sync() {
+        eprintln!("Failed to cleanup test database: {}", e);
+    }
 }
 
 // Setup function to initialize the test database for each test and teardown function to drop connections after each test
