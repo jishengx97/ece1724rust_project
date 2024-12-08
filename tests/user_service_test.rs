@@ -32,7 +32,7 @@ fn cleanup() {
 impl AsyncTestContext for UserServiceContext {
     // Setup function to initialize the test database for each test
     async fn setup() -> Self {
-        let pool = TestDb::get_instance()
+        let pool = TestDb::get_instance(file!())
             .await
             .expect("Failed to get test database instance");
 

@@ -34,7 +34,7 @@ fn cleanup() {
 #[async_trait]
 impl AsyncTestContext for TicketServiceContext {
     async fn setup() -> Self {
-        let pool = TestDb::get_instance()
+        let pool = TestDb::get_instance(file!())
             .await
             .expect("Failed to get test database instance");
 

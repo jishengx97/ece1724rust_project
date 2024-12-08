@@ -45,15 +45,21 @@ async fn create_connection_pool_with_db(db_name: &str) -> Result<Pool, Error> {
 
 impl TestDb {
     // Get the database instance - Setup function to initialize the test database for each test
-    pub async fn get_instance() -> Result<Pool, Error> {
+    pub async fn get_instance(file_path: &str) -> Result<Pool, Error> {
+        let test_name = file_path
+            .split(['/', '\\']) // Handle both Unix and Windows paths
+            .last()
+            .unwrap_or(file_path)
+            .trim_end_matches(".rs");
+
         // Try to get the database instance
         let test_db = TEST_DB.get_or_init(|| Mutex::new(None));
         let mut guard = test_db.lock().await;
 
         // If the database instance does not exist, create it
         if guard.is_none() {
-            println!("Creating new database instance");
-            *guard = Some(Self::setup_database().await?);
+            println!("Creating new database instance for {}", test_name);
+            *guard = Some(Self::setup_database(test_name).await?);
         }
 
         // Save the database name
@@ -66,7 +72,7 @@ impl TestDb {
     }
 
     // Setup function to initialize the test database for each test
-    async fn setup_database() -> Result<Self, Error> {
+    async fn setup_database(test_name: &str) -> Result<Self, Error> {
         // Create a unique database name by timestamp for each test
         let db_name = DB_NAME
             .get_or_init(|| {
@@ -74,7 +80,7 @@ impl TestDb {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs();
-                let name = format!("airline_test_{}", timestamp);
+                let name = format!("airline_test_{}_{}", test_name, timestamp);
                 println!("Generated database name: {}", name);
                 name
             })
