@@ -6,6 +6,7 @@ use crate::models::ticket::{
 };
 use crate::utils::error::{AppError, AppResult};
 use chrono::{NaiveDate, NaiveTime};
+use rand::Rng;
 use sqlx::MySqlPool;
 
 #[derive(Clone)]
@@ -48,9 +49,6 @@ impl TicketService {
             None => {}
         };
 
-        let mut retries = 0;
-        let max_retries = 3;
-
         let mut flight: Flight;
 
         loop {
@@ -68,7 +66,7 @@ impl TicketService {
             .fetch_one(&self.pool)
             .await?;
 
-            println!("Searched flight {}!", flight.flight_id);
+            // println!("Searched flight {}!", flight.flight_id);
 
             if flight.available_tickets == 0 {
                 return Err(AppError::ValidationError(
@@ -96,22 +94,14 @@ impl TicketService {
 
             if update_result.rows_affected() == 0 {
                 tx.rollback().await?;
-                retries += 1;
 
-                if retries > max_retries {
-                    break;
-                }
+                // sleep a bit to prevent from deadlock
+                let millis = rand::thread_rng().gen_range(1..=50);
+                tokio::time::sleep(tokio::time::Duration::from_millis(millis)).await;
             } else {
                 tx.commit().await?;
                 break;
             }
-        }
-
-        if retries > max_retries {
-            // We did not success
-            return Err(AppError::ValidationError(
-                "We failed to book your flight at this time, please retry.".to_string(),
-            ));
         }
 
         let result = sqlx::query!(
@@ -177,10 +167,7 @@ impl TicketService {
         new_seat_number: i32,
         old_seat_number: Option<i32>,
     ) -> AppResult<bool> {
-        let mut retries = 0;
-        let max_retries = 3;
-
-        while retries < max_retries {
+        loop {
             let mut tx = self.pool.begin().await?;
 
             // get the new seat information
@@ -232,7 +219,6 @@ impl TicketService {
 
             if update_result.rows_affected() == 0 {
                 tx.rollback().await?;
-                retries += 1;
                 continue;
             }
 
@@ -269,10 +255,6 @@ impl TicketService {
             tx.commit().await?;
             return Ok(true);
         }
-
-        Err(AppError::Conflict(
-            "Failed to book seat after maximum retries".into(),
-        ))
     }
 
     pub async fn book_seat_for_ticket(
