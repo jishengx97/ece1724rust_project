@@ -18,7 +18,8 @@ pub struct TestDb {
 // Create a connection pool without a database, used to create a new database
 async fn create_connection_pool_without_db() -> Result<Pool, Error> {
     dotenv().ok();
-    let db_url = env::var("ADMIN_DATABASE_URL").expect("DATABASE_URL must be set in .env file");
+    let db_url =
+        env::var("ADMIN_DATABASE_URL").expect("ADMIN_DATABASE_URL must be set in .env file");
 
     let base_url = db_url.split("/").collect::<Vec<&str>>()[..3].join("/");
 
@@ -31,7 +32,8 @@ async fn create_connection_pool_without_db() -> Result<Pool, Error> {
 // Create a connection pool with a test database
 async fn create_connection_pool_with_db(db_name: &str) -> Result<Pool, Error> {
     dotenv().ok();
-    let db_url = env::var("ADMIN_DATABASE_URL").expect("DATABASE_URL must be set in .env file");
+    let db_url =
+        env::var("ADMIN_DATABASE_URL").expect("ADMIN_DATABASE_URL must be set in .env file");
 
     let base_url = db_url.split("/").collect::<Vec<&str>>()[..3].join("/");
 
@@ -178,19 +180,8 @@ impl TestDb {
         Ok(())
     }
 
-    async fn insert_initial_data(pool: &Pool) -> Result<(), Error> {
-        let aircrafts = vec![
-            "INSERT INTO aircraft (aircraft_id, capacity) VALUES (737, 169)",
-            "INSERT INTO aircraft (aircraft_id, capacity) VALUES (777, 400)",
-            "INSERT INTO aircraft (aircraft_id, capacity) VALUES (320, 146)",
-            "INSERT INTO aircraft (aircraft_id, capacity) VALUES (900, 76)",
-            "INSERT INTO aircraft (aircraft_id, capacity) VALUES (200, 50)",
-        ];
-
-        for aircraft_sql in aircrafts {
-            sqlx::query(aircraft_sql).execute(pool).await?;
-        }
-
+    async fn insert_initial_data(_pool: &Pool) -> Result<(), Error> {
+        // No global test data needed
         Ok(())
     }
 

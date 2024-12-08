@@ -8,6 +8,7 @@ use crate::utils::error::{AppError, AppResult};
 use chrono::{NaiveDate, NaiveTime};
 use sqlx::MySqlPool;
 
+#[derive(Clone)]
 pub struct TicketService {
     pool: MySqlPool,
 }
