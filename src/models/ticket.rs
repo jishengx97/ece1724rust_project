@@ -13,7 +13,7 @@ pub struct Ticket {
     pub flight_number: i32,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema, Clone)]
 pub struct TicketBookingRequest {
     pub flight_number: i32,
     pub flight_date: NaiveDate,
