@@ -5,10 +5,10 @@ use airline_booking_system::{
     services::user_service::UserService,
     utils::error::AppError,
 };
+use async_trait::async_trait;
 use chrono::NaiveDate;
 use sqlx::mysql::MySqlPool as Pool;
-use test_context::{AsyncTestContext, test_context};
-use async_trait::async_trait;
+use test_context::{test_context, AsyncTestContext};
 mod common {
     pub mod test_utils;
 }
@@ -36,21 +36,16 @@ impl AsyncTestContext for UserServiceContext {
         let pool = TestDb::get_instance()
             .await
             .expect("Failed to get test database instance");
-            
+
         let user_service = UserService::new(pool.clone());
-        
-        UserServiceContext {
-            pool,
-            user_service,
-        }
+
+        UserServiceContext { pool, user_service }
     }
 
     // Teardown function to drop connections after each test
     async fn teardown(self) {
-        let _ = sqlx::query("SELECT 1")
-            .execute(&self.pool)
-            .await;
-            
+        let _ = sqlx::query("SELECT 1").execute(&self.pool).await;
+
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
 }
@@ -67,17 +62,17 @@ async fn test_user_registration_success(ctx: &UserServiceContext) -> Result<(), 
         birth_date: NaiveDate::from_ymd_opt(1990, 1, 1).unwrap(),
         gender: "male".to_string(),
     };
-    
+
     let expected_username = test_user.username.clone();
     let expected_name = test_user.name.clone();
     let expected_gender = test_user.gender.clone();
-    
+
     // Register user
     let user_id = ctx.user_service.register_user(test_user).await?;
-    
+
     // Assert
     assert!(user_id > 0, "User ID should be positive");
-    
+
     let saved_user = sqlx::query!(
         r#"
         SELECT u.username, u.role, c.name, c.gender 
@@ -95,7 +90,7 @@ async fn test_user_registration_success(ctx: &UserServiceContext) -> Result<(), 
     assert_eq!(saved_user.role, "USER");
     assert_eq!(saved_user.name, expected_name);
     assert_eq!(saved_user.gender, expected_gender);
-    
+
     Ok(())
 }
 
@@ -112,17 +107,17 @@ async fn test_user_registration_success_two(ctx: &UserServiceContext) -> Result<
         birth_date: NaiveDate::from_ymd_opt(1990, 1, 1).unwrap(),
         gender: "male".to_string(),
     };
-    
+
     let expected_username = test_user.username.clone();
     let expected_name = test_user.name.clone();
     let expected_gender = test_user.gender.clone();
-    
+
     // Register user
     let user_id = ctx.user_service.register_user(test_user).await?;
-    
+
     // Assert
     assert!(user_id > 0, "User ID should be positive");
-    
+
     let saved_user = sqlx::query!(
         r#"
         SELECT u.username, u.role, c.name, c.gender 
@@ -140,6 +135,6 @@ async fn test_user_registration_success_two(ctx: &UserServiceContext) -> Result<
     assert_eq!(saved_user.role, "USER");
     assert_eq!(saved_user.name, expected_name);
     assert_eq!(saved_user.gender, expected_gender);
-    
+
     Ok(())
 }

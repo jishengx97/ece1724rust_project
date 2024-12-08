@@ -4,8 +4,8 @@ use sqlx::mysql::MySqlPool as Pool;
 use sqlx::mysql::MySqlPoolOptions;
 use sqlx::Error;
 use std::env;
-use tokio::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::sync::Mutex;
 
 static TEST_DB: OnceCell<Mutex<Option<TestDb>>> = OnceCell::new();
 static DB_NAME: OnceCell<String> = OnceCell::new();
@@ -18,11 +18,10 @@ pub struct TestDb {
 // Create a connection pool without a database, used to create a new database
 async fn create_connection_pool_without_db() -> Result<Pool, Error> {
     dotenv().ok();
-    let db_url = env::var("ADMIN_DATABASE_URL")
-        .expect("DATABASE_URL must be set in .env file");
-    
+    let db_url = env::var("ADMIN_DATABASE_URL").expect("DATABASE_URL must be set in .env file");
+
     let base_url = db_url.split("/").collect::<Vec<&str>>()[..3].join("/");
-    
+
     MySqlPoolOptions::new()
         .max_connections(10)
         .connect(&base_url)
@@ -32,11 +31,10 @@ async fn create_connection_pool_without_db() -> Result<Pool, Error> {
 // Create a connection pool with a test database
 async fn create_connection_pool_with_db(db_name: &str) -> Result<Pool, Error> {
     dotenv().ok();
-    let db_url = env::var("ADMIN_DATABASE_URL")
-        .expect("DATABASE_URL must be set in .env file");
-    
+    let db_url = env::var("ADMIN_DATABASE_URL").expect("DATABASE_URL must be set in .env file");
+
     let base_url = db_url.split("/").collect::<Vec<&str>>()[..3].join("/");
-    
+
     MySqlPoolOptions::new()
         .max_connections(5)
         .connect(&format!("{}/{}", base_url, db_name))
@@ -49,17 +47,17 @@ impl TestDb {
         // Try to get the database instance
         let test_db = TEST_DB.get_or_init(|| Mutex::new(None));
         let mut guard = test_db.lock().await;
-        
+
         // If the database instance does not exist, create it
         if guard.is_none() {
             println!("Creating new database instance");
             *guard = Some(Self::setup_database().await?);
         }
-        
+
         // Save the database name
         let db_name = guard.as_ref().unwrap().db_name.clone();
         drop(guard);
-        
+
         // Create a new connection pool for each test
         println!("Creating new connection pool");
         create_connection_pool_with_db(&db_name).await
@@ -67,33 +65,34 @@ impl TestDb {
 
     // Setup function to initialize the test database for each test
     async fn setup_database() -> Result<Self, Error> {
-
         // Create a unique database name by timestamp for each test
-        let db_name = DB_NAME.get_or_init(|| {
-            let timestamp = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-            let name = format!("airline_test_{}", timestamp);
-            println!("Generated database name: {}", name);
-            name
-        }).clone();
+        let db_name = DB_NAME
+            .get_or_init(|| {
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                let name = format!("airline_test_{}", timestamp);
+                println!("Generated database name: {}", name);
+                name
+            })
+            .clone();
 
         println!("Setting up database: {}", db_name);
         let admin_pool = create_connection_pool_without_db().await?;
-            
+
         println!("Creating fresh database");
         sqlx::query(&format!("CREATE DATABASE {}", db_name))
             .execute(&admin_pool)
             .await?;
-            
+
         // Create a connection pool with the new database
         let pool = create_connection_pool_with_db(&db_name).await?;
         println!("Initializing tables");
         Self::create_tables(&pool).await?;
         println!("Inserting initial data");
         Self::insert_initial_data(&pool).await?;
-        
+
         Ok(Self { db_name })
     }
 
@@ -103,7 +102,6 @@ impl TestDb {
                 aircraft_id INT NOT NULL PRIMARY KEY,
                 capacity INT NOT NULL
             )",
-            
             "CREATE TABLE IF NOT EXISTS user (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 username CHAR(255) NOT NULL,
@@ -111,7 +109,6 @@ impl TestDb {
                 role ENUM('ADMIN', 'USER') DEFAULT 'USER' NOT NULL,
                 CONSTRAINT user_username_uindex UNIQUE (username)
             )",
-            
             "CREATE TABLE IF NOT EXISTS customer_info (
                 id INT NOT NULL PRIMARY KEY,
                 name CHAR(255) NOT NULL,
@@ -121,7 +118,6 @@ impl TestDb {
                     FOREIGN KEY (id) REFERENCES user(id)
                     ON DELETE CASCADE
             )",
-            
             "CREATE TABLE IF NOT EXISTS flight_route (
                 flight_number INT NOT NULL PRIMARY KEY,
                 departure_city CHAR(255) NOT NULL,
@@ -136,7 +132,6 @@ impl TestDb {
                     FOREIGN KEY (aircraft_id) REFERENCES aircraft(aircraft_id)
                     ON UPDATE CASCADE ON DELETE CASCADE
             )",
-            
             "CREATE TABLE IF NOT EXISTS flight (
                 flight_id INT AUTO_INCREMENT PRIMARY KEY,
                 flight_number INT NOT NULL,
@@ -147,7 +142,6 @@ impl TestDb {
                     FOREIGN KEY (flight_number) REFERENCES flight_route(flight_number)
                     ON UPDATE CASCADE ON DELETE CASCADE
             )",
-
             "CREATE TABLE IF NOT EXISTS seat_info (
                 flight_id INT NOT NULL,
                 seat_number INT NOT NULL,
@@ -158,7 +152,6 @@ impl TestDb {
                     FOREIGN KEY (flight_id) REFERENCES flight(flight_id)
                     ON DELETE CASCADE
             )",
-            
             "CREATE TABLE IF NOT EXISTS ticket (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 customer_id INT NOT NULL,
@@ -175,13 +168,11 @@ impl TestDb {
                 CONSTRAINT ticket_seat_info_flight_id_seat_number_fk
                     FOREIGN KEY (flight_id, seat_number) 
                     REFERENCES seat_info(flight_id, seat_number)
-            )"
+            )",
         ];
 
         for create_sql in tables {
-            sqlx::query(create_sql)
-                .execute(pool)
-                .await?;
+            sqlx::query(create_sql).execute(pool).await?;
         }
 
         Ok(())
@@ -193,13 +184,11 @@ impl TestDb {
             "INSERT INTO aircraft (aircraft_id, capacity) VALUES (777, 400)",
             "INSERT INTO aircraft (aircraft_id, capacity) VALUES (320, 146)",
             "INSERT INTO aircraft (aircraft_id, capacity) VALUES (900, 76)",
-            "INSERT INTO aircraft (aircraft_id, capacity) VALUES (200, 50)"
+            "INSERT INTO aircraft (aircraft_id, capacity) VALUES (200, 50)",
         ];
 
         for aircraft_sql in aircrafts {
-            sqlx::query(aircraft_sql)
-                .execute(pool)
-                .await?;
+            sqlx::query(aircraft_sql).execute(pool).await?;
         }
 
         Ok(())
@@ -210,15 +199,14 @@ impl TestDb {
     // Teardown function to drop database after test run (not after each test)
     pub fn cleanup_database_sync() -> Result<(), Box<dyn std::error::Error>> {
         dotenv().ok();
-        
+
         // Use .env file to get the admin database url
-        let db_url = env::var("ADMIN_DATABASE_URL")
-            .expect("DATABASE_URL must be set in .env file");
+        let db_url = env::var("ADMIN_DATABASE_URL").expect("DATABASE_URL must be set in .env file");
         let url_parts: Vec<&str> = db_url.split("://").nth(1).unwrap().split("@").collect();
         let auth = url_parts[0].split(":").collect::<Vec<&str>>();
         let username = auth[0];
         let password = auth[1];
-        
+
         // Get the database name and drop the database
         if let Some(db_name) = DB_NAME.get() {
             let output = std::process::Command::new("mysql")
@@ -233,7 +221,8 @@ impl TestDb {
                 return Err(format!(
                     "Failed to drop test database: {}",
                     String::from_utf8_lossy(&output.stderr)
-                ).into());
+                )
+                .into());
             }
         }
         Ok(())

@@ -1,13 +1,13 @@
 use airline_booking_system::{
-    models::user::{Role, UserRegistrationRequest, UserLoginRequest},
+    models::user::{Role, UserLoginRequest, UserRegistrationRequest},
     services::user_service::UserService,
     utils::error::AppError,
 };
-use chrono::NaiveDate;
-use sqlx::mysql::MySqlPool as Pool;
-use test_context::{AsyncTestContext, test_context};
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use ctor::dtor;
+use sqlx::mysql::MySqlPool as Pool;
+use test_context::{test_context, AsyncTestContext};
 
 mod common {
     pub mod test_utils;
@@ -35,20 +35,15 @@ impl AsyncTestContext for UserServiceContext {
         let pool = TestDb::get_instance()
             .await
             .expect("Failed to get test database instance");
-            
+
         let user_service = UserService::new(pool.clone());
-        
-        UserServiceContext {
-            pool,
-            user_service,
-        }
+
+        UserServiceContext { pool, user_service }
     }
 
     // Teardown function to drop connections after each test
     async fn teardown(self) {
-        let _ = sqlx::query("SELECT 1")
-            .execute(&self.pool)
-            .await;
+        let _ = sqlx::query("SELECT 1").execute(&self.pool).await;
 
         //self.pool.close().await;
     }
@@ -66,17 +61,17 @@ async fn test_user_registration_success(ctx: &UserServiceContext) -> Result<(), 
         birth_date: NaiveDate::from_ymd_opt(1990, 1, 1).unwrap(),
         gender: "male".to_string(),
     };
-    
+
     let expected_username = test_user.username.clone();
     let expected_name = test_user.name.clone();
     let expected_gender = test_user.gender.clone();
-    
+
     // Register user
     let user_id = ctx.user_service.register_user(test_user).await?;
-    
+
     // Assert
     assert!(user_id > 0, "User ID should be positive");
-    
+
     let saved_user = sqlx::query!(
         r#"
         SELECT u.username, u.role, c.name, c.gender 
@@ -94,17 +89,19 @@ async fn test_user_registration_success(ctx: &UserServiceContext) -> Result<(), 
     assert_eq!(saved_user.role, "USER");
     assert_eq!(saved_user.name, expected_name);
     assert_eq!(saved_user.gender, expected_gender);
-    
+
     Ok(())
 }
 
 #[test_context(UserServiceContext)]
 #[tokio::test]
-async fn test_user_registration_duplicate_username(ctx: &UserServiceContext) -> Result<(), AppError> {
+async fn test_user_registration_duplicate_username(
+    ctx: &UserServiceContext,
+) -> Result<(), AppError> {
     // Create a user with the same username
     let existing_username = "duplicate_test_user";
     let hashed_password = bcrypt::hash("existing_password", bcrypt::DEFAULT_COST).unwrap();
-    
+
     sqlx::query!(
         "INSERT INTO user (username, password, role) VALUES (?, ?, ?)",
         existing_username,
@@ -123,9 +120,9 @@ async fn test_user_registration_duplicate_username(ctx: &UserServiceContext) -> 
         birth_date: NaiveDate::from_ymd_opt(1990, 1, 1).unwrap(),
         gender: "male".to_string(),
     };
-    
+
     let result = ctx.user_service.register_user(test_user).await;
-    
+
     // Assert
     match result {
         Err(AppError::Conflict(msg)) => {
@@ -143,7 +140,7 @@ async fn test_user_login_success(ctx: &UserServiceContext) -> Result<(), AppErro
     let test_username = "login_test_user";
     let test_password = "test_password123";
     let hashed_password = bcrypt::hash(test_password, bcrypt::DEFAULT_COST).unwrap();
-    
+
     sqlx::query!(
         "INSERT INTO user (username, password, role) VALUES (?, ?, ?)",
         test_username,
@@ -163,8 +160,11 @@ async fn test_user_login_success(ctx: &UserServiceContext) -> Result<(), AppErro
 
     // Assert
     assert!(login_response.user_id > 0, "User ID should be positive");
-    assert!(!login_response.token.is_empty(), "Token should not be empty");
-    
+    assert!(
+        !login_response.token.is_empty(),
+        "Token should not be empty"
+    );
+
     Ok(())
 }
 
@@ -175,7 +175,7 @@ async fn test_user_login_nonexistent_username(ctx: &UserServiceContext) -> Resul
     let test_username = "another_test_user";
     let test_password = "test_password123";
     let hashed_password = bcrypt::hash(test_password, bcrypt::DEFAULT_COST).unwrap();
-    
+
     sqlx::query!(
         "INSERT INTO user (username, password, role) VALUES (?, ?, ?)",
         test_username,
@@ -210,7 +210,7 @@ async fn test_user_login_wrong_password(ctx: &UserServiceContext) -> Result<(), 
     let test_username = "password_test_user";
     let test_password = "correct_password";
     let hashed_password = bcrypt::hash(test_password, bcrypt::DEFAULT_COST).unwrap();
-    
+
     sqlx::query!(
         "INSERT INTO user (username, password, role) VALUES (?, ?, ?)",
         test_username,
