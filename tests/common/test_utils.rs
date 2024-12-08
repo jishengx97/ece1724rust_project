@@ -7,6 +7,18 @@ use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
+#[macro_export]
+macro_rules! test_println {
+    ($test_name:expr, $($arg:tt)*) => {{
+        let file_name = file!()
+            .split(['/', '\\'])
+            .last()
+            .unwrap_or(file!())
+            .trim_end_matches(".rs");
+        println!("[{}/{}] {}", file_name, $test_name, format!($($arg)*));
+    }};
+}
+
 static TEST_DB: OnceCell<Mutex<Option<TestDb>>> = OnceCell::new();
 static DB_NAME: OnceCell<String> = OnceCell::new();
 
