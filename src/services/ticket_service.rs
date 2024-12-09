@@ -118,7 +118,7 @@ impl TicketService {
         .await?;
 
         let ticket_id = result.last_insert_id() as i32;
-        println!("inserted {}", ticket_id);
+        // println!("inserted {}", ticket_id);
 
         let response = TicketBookingResponse {
             ticket_id,
@@ -134,7 +134,7 @@ impl TicketService {
                     .book_seat_for_ticket(
                         user_id,
                         SeatBookingRequest {
-                            flight_number: flight.flight_number.to_string(),
+                            flight_number: flight.flight_number,
                             flight_date: NaiveDate::from_ymd_opt(
                                 flight.flight_date.year() as i32,
                                 flight.flight_date.month() as u32,
@@ -219,6 +219,10 @@ impl TicketService {
 
             if update_result.rows_affected() == 0 {
                 tx.rollback().await?;
+                
+                // sleep a bit to prevent from deadlock
+                let millis = rand::thread_rng().gen_range(1..=50);
+                tokio::time::sleep(tokio::time::Duration::from_millis(millis)).await;
                 continue;
             }
 
@@ -280,7 +284,7 @@ impl TicketService {
         .fetch_optional(&self.pool)
         .await?;
 
-        println!("ticket: {:?}", ticket);
+        // println!("ticket: {:?}", ticket);
 
         let ticket = match ticket {
             Some(t) => t,
