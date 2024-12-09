@@ -1,6 +1,6 @@
 use airline_booking_system::{
     models::{
-        ticket::TicketBookingRequest,
+        ticket::TicketBookingRequest, ticket::SeatBookingRequest,
         user::{Role, UserRegistrationRequest},
     },
     services::{ticket_service::TicketService, user_service::UserService},
@@ -8,6 +8,7 @@ use airline_booking_system::{
 };
 use async_trait::async_trait;
 use chrono::NaiveDate;
+use rand::Rng;
 use sqlx::mysql::MySqlPool as Pool;
 use test_context::{test_context, AsyncTestContext};
 use tokio::task::JoinSet;
@@ -319,6 +320,309 @@ async fn test_concurrent_ticket_booking_capacity5(
         final_flight.available_tickets, 0,
         "Available tickets should be 0"
     );
+
+    Ok(())
+}
+
+#[test_context(TicketServiceContext)]
+#[tokio::test]
+async fn test_concurrent_seat_booking1(ctx: &TicketServiceContext) -> Result<(), AppError> {
+    let test_name = "test_concurrent_seat_booking1";
+    
+    // Setup: Create a flight with capacity 10
+    let flight_number = 20;
+    let capacity = 10;
+    let num_users = 10;
+    let flight_date = NaiveDate::from_ymd_opt(2024, 12, 08).unwrap();
+    let target_seat = 1; // The seat everyone will try to book
+
+    // Setup database
+    setup_database(ctx, flight_number, capacity, flight_date).await?;
+
+    // Create seat info
+    test_println!(test_name, "Creating seat information...");
+    let flight_id = sqlx::query!(
+        "SELECT flight_id FROM flight WHERE flight_number = ? AND flight_date = ?",
+        flight_number,
+        flight_date
+    )
+    .fetch_one(&ctx.pool)
+    .await?
+    .flight_id;
+
+    // Insert seats
+    for seat_number in 1..=capacity {
+        sqlx::query!(
+            r#"
+            INSERT INTO seat_info (flight_id, seat_number, seat_status, version)
+            VALUES (?, ?, 'AVAILABLE', 0)
+            "#,
+            flight_id,
+            seat_number,
+        )
+        .execute(&ctx.pool)
+        .await?;
+    }
+
+    // Register users and book tickets (without seats)
+    test_println!(test_name, "Registering {} users and booking tickets...", num_users);
+    let mut user_ids = Vec::new();
+    for i in 0..num_users {
+        // Register user
+        let user = UserRegistrationRequest {
+            username: format!("seat_test1_user_{}", i),
+            password: "test_password".to_string(),
+            role: Role::User,
+            name: format!("Test User {}", i),
+            birth_date: NaiveDate::from_ymd_opt(1990, 1, 1).unwrap(),
+            gender: "male".to_string(),
+        };
+        let user_id = ctx.user_service.register_user(user).await?;
+        
+        // Book ticket (without seat)
+        let booking_request = TicketBookingRequest {
+            flight_number,
+            flight_date,
+            preferred_seat: None,
+        };
+        ctx.ticket_service.book_ticket(user_id, booking_request).await?;
+        
+        user_ids.push(user_id);
+    }
+
+    // Now try to book the same seat concurrently
+    test_println!(test_name, "Starting concurrent seat booking attempts...");
+    let seat_request = SeatBookingRequest {
+        flight_number: flight_number,
+        flight_date,
+        seat_number: target_seat,
+    };
+
+    // Prepare all tasks
+    let mut tasks = Vec::new();
+    for user_id in user_ids {
+        let ticket_service = ctx.ticket_service.clone();
+        let request = seat_request.clone();
+        tasks.push((user_id, ticket_service, request));
+    }
+
+    // Now spawn all tasks at once
+    let mut join_set = JoinSet::new();
+    for (user_id, ticket_service, request) in tasks {
+        join_set.spawn(async move {
+            let result = ticket_service.book_seat_for_ticket(user_id, request).await;
+            (user_id, result)
+        });
+    }
+
+    let mut successful_bookings = 0;
+    while let Some(result) = join_set.join_next().await {
+        match result.unwrap() {
+            (user_id, Ok(_)) => {
+                successful_bookings += 1;
+                test_println!(test_name, "User {} successfully booked seat {}", user_id, target_seat);
+            }
+            (user_id, Err(e)) => {
+                test_println!(test_name, "User {} failed to book seat: {}", user_id, e);
+            }
+        }
+    }
+
+    // Assert that only one booking was successful
+    assert_eq!(
+        successful_bookings, 1,
+        "Only one seat booking should succeed"
+    );
+
+    // Verify final state
+    let final_seat = sqlx::query!(
+        r#"
+        SELECT seat_status, version
+        FROM seat_info
+        WHERE flight_id = ? AND seat_number = ?
+        "#,
+        flight_id,
+        target_seat
+    )
+    .fetch_one(&ctx.pool)
+    .await?;
+
+    assert_eq!(
+        final_seat.seat_status, "BOOKED",
+        "Seat should be marked as booked"
+    );
+
+    let booked_tickets = sqlx::query!(
+        r#"
+        SELECT COUNT(*) as count
+        FROM ticket
+        WHERE flight_id = ? AND seat_number = ?
+        "#,
+        flight_id,
+        target_seat
+    )
+    .fetch_one(&ctx.pool)
+    .await?;
+
+    assert_eq!(
+        booked_tickets.count, 1,
+        "Only one ticket should have this seat number"
+    );
+
+    Ok(())
+}
+
+#[test_context(TicketServiceContext)]
+#[tokio::test]
+async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(), AppError> {
+    let test_name = "test_concurrent_seat_booking5";
+    
+    // Setup: Create a flight with capacity 10
+    let flight_number = 25;
+    let capacity = 30;
+    let num_users = 20;
+    let flight_date = NaiveDate::from_ymd_opt(2024, 12, 08).unwrap();
+    let target_seats = vec![1, 2, 3, 4, 5]; // The seat everyone will try to book
+
+    // Setup database
+    setup_database(ctx, flight_number, capacity, flight_date).await?;
+
+    // Create seat info
+    test_println!(test_name, "Creating seat information...");
+    let flight_id = sqlx::query!(
+        "SELECT flight_id FROM flight WHERE flight_number = ? AND flight_date = ?",
+        flight_number,
+        flight_date
+    )
+    .fetch_one(&ctx.pool)
+    .await?
+    .flight_id;
+
+    // Insert seats
+    for seat_number in 1..=capacity {
+        sqlx::query!(
+            r#"
+            INSERT INTO seat_info (flight_id, seat_number, seat_status, version)
+            VALUES (?, ?, 'AVAILABLE', 0)
+            "#,
+            flight_id,
+            seat_number,
+        )
+        .execute(&ctx.pool)
+        .await?;
+    }
+
+    // Register users and book tickets (without seats)
+    test_println!(test_name, "Registering {} users and booking tickets...", num_users);
+    let mut user_ids = Vec::new();
+    for i in 0..num_users {
+        // Register user
+        let user = UserRegistrationRequest {
+            username: format!("seat_test5_user_{}", i),
+            password: "test_password".to_string(),
+            role: Role::User,
+            name: format!("Test User {}", i),
+            birth_date: NaiveDate::from_ymd_opt(1990, 1, 1).unwrap(),
+            gender: "male".to_string(),
+        };
+        let user_id = ctx.user_service.register_user(user).await?;
+        
+        // Book ticket (without seat)
+        let booking_request = TicketBookingRequest {
+            flight_number,
+            flight_date,
+            preferred_seat: None,
+        };
+        ctx.ticket_service.book_ticket(user_id, booking_request).await?;
+        
+        user_ids.push(user_id);
+    }
+
+    // Now try to book the same seat concurrently
+    test_println!(test_name, "Starting concurrent seat booking attempts...");
+    // Prepare all tasks
+    let mut tasks = Vec::new();
+    for user_id in user_ids {
+        // Each user randomly picks one of the target seats
+        let target_seat = target_seats[rand::thread_rng().gen_range(0..target_seats.len())];
+        let seat_request = SeatBookingRequest {
+            flight_number: flight_number,
+            flight_date,
+            seat_number: target_seat,
+        };
+        let ticket_service = ctx.ticket_service.clone();
+        tasks.push((user_id, ticket_service, seat_request));
+    }
+
+    // Now spawn all tasks at once
+    let mut join_set = JoinSet::new();
+    for (user_id, ticket_service, request) in tasks {
+        join_set.spawn(async move {
+            let result = ticket_service.book_seat_for_ticket(user_id, request.clone()).await;
+            (user_id, request.seat_number, result)
+        });
+    }
+
+    let mut successful_bookings = 0;
+    let mut booked_seats = std::collections::HashSet::new();
+    while let Some(result) = join_set.join_next().await {
+        match result.unwrap() {
+            (user_id, seat_number, Ok(_)) => {
+                successful_bookings += 1;
+                booked_seats.insert(seat_number);
+                test_println!(test_name, "User {} successfully booked seat {}", user_id, seat_number);
+            }
+            (user_id, seat_number, Err(e)) => {
+                test_println!(test_name, "User {} failed to book seat {}: {}", user_id, seat_number, e);
+            }
+        }
+    }
+
+    // Assert that only five bookings were successful
+    assert_eq!(
+        successful_bookings, 5,
+        "Only five seat bookings should succeed"
+    );
+
+    // Verify that all five target seats were booked
+    for seat_number in &target_seats {
+        let seat_info = sqlx::query!(
+            r#"
+            SELECT seat_status
+            FROM seat_info
+            WHERE flight_id = ? AND seat_number = ?
+            "#,
+            flight_id,
+            seat_number
+        )
+        .fetch_one(&ctx.pool)
+        .await?;
+
+        assert_eq!(
+            seat_info.seat_status, "BOOKED",
+            "Seat {} should be marked as booked", seat_number
+        );
+    }
+
+    // Verify that each seat was booked exactly once
+    for seat_number in &target_seats {
+        let booked_tickets = sqlx::query!(
+            r#"
+            SELECT COUNT(*) as count
+            FROM ticket
+            WHERE flight_id = ? AND seat_number = ?
+            "#,
+            flight_id,
+            seat_number
+        )
+        .fetch_one(&ctx.pool)
+        .await?;
+
+        assert_eq!(
+            booked_tickets.count, 1,
+            "Seat {} should be booked exactly once", seat_number
+        );
+    }
 
     Ok(())
 }
