@@ -5,6 +5,7 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use sqlx::MySqlPool;
 use validator::Validate;
 
+#[derive(Clone)]
 pub struct UserService {
     pool: MySqlPool,
 }
