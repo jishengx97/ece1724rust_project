@@ -1,5 +1,6 @@
 use airline_booking_system::{
     models::{
+        ticket::SeatBookingRequest,
         ticket::TicketBookingRequest,
         user::{Role, UserRegistrationRequest},
     },
@@ -7,9 +8,10 @@ use airline_booking_system::{
     utils::error::AppError,
 };
 use async_trait::async_trait;
-use chrono::{Duration, NaiveDate};
+use chrono::NaiveDate;
 use rand::Rng;
 use sqlx::mysql::MySqlPool;
+use std::time::Duration;
 use std::time::Instant;
 use test_context::{test_context, AsyncTestContext};
 use tokio::task::JoinSet;
@@ -24,6 +26,12 @@ struct ThroughputContext {
     pool: MySqlPool,
     ticket_service: TicketService,
     user_service: UserService,
+}
+
+#[derive(Debug, Clone)]
+enum MixedRequest {
+    Booking((i32, i32, NaiveDate)),
+    SeatSelection((i32, i32, NaiveDate, i32)),
 }
 
 #[dtor]
@@ -90,17 +98,17 @@ impl PerformanceMetrics {
     fn print_summary(&self, test_name: &str) {
         test_println!(test_name, "Performance Summary:");
         test_println!(test_name, "Total Requests: {}", self.total_requests);
-        test_println!(
-            test_name,
-            "Successful Requests: {}",
-            self.successful_requests
-        );
-        test_println!(test_name, "Failed Requests: {}", self.failed_requests);
-        test_println!(
-            test_name,
-            "Success Rate: {:.2}%",
-            (self.successful_requests as f64 / self.total_requests as f64) * 100.0
-        );
+        // test_println!(
+        //     test_name,
+        //     "Successful Requests: {}",
+        //     self.successful_requests
+        // );
+        // test_println!(test_name, "Failed Requests: {}", self.failed_requests);
+        // test_println!(
+        //     test_name,
+        //     "Success Rate: {:.2}%",
+        //     (self.successful_requests as f64 / self.total_requests as f64) * 100.0
+        // );
         test_println!(test_name, "Min Latency: {:?}", self.min_latency);
         test_println!(test_name, "Max Latency: {:?}", self.max_latency);
         test_println!(test_name, "Avg Latency: {:?}", self.avg_latency);
@@ -110,6 +118,15 @@ impl PerformanceMetrics {
             "Throughput: {:.2} requests/second",
             self.total_requests as f64 / self.total_duration.as_secs_f64()
         );
+    }
+
+    fn update_latency(&mut self, latency: Duration) {
+        self.min_latency = self.min_latency.min(latency);
+        self.max_latency = self.max_latency.max(latency);
+
+        let current_total = self.avg_latency.as_nanos() as u128 * (self.total_requests - 1) as u128;
+        let new_avg = (current_total + latency.as_nanos()) / self.total_requests as u128;
+        self.avg_latency = Duration::from_nanos(new_avg as u64);
     }
 }
 
@@ -147,7 +164,7 @@ async fn setup_test_data(ctx: &ThroughputContext) -> Result<(), AppError> {
                 flight_number,
                 flight_number,
                 base_date,
-                base_date + Duration::days(365)
+                base_date + chrono::Duration::days(365)
             )
             .execute(&pool)
             .await?;
@@ -178,7 +195,7 @@ async fn setup_test_data(ctx: &ThroughputContext) -> Result<(), AppError> {
 
             for days in 0..30 {
                 let pool = pool.clone();
-                let flight_date = base_date + Duration::days(days);
+                let flight_date = base_date + chrono::Duration::days(days);
 
                 seat_tasks.spawn(async move {
                     // Create flight
@@ -311,88 +328,45 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
 
     test_println!(test_name, "Successfully created {} users", user_ids.len());
 
-    let metrics = PerformanceMetrics::new();
-    let metrics = std::sync::Arc::new(std::sync::Mutex::new(metrics));
-
-    // Start timing
-    let start_time = Instant::now();
-
-    // Pre-generate unique flight assignments for each user
-    let mut user_flight_assignments = Vec::new();
+    test_println!(test_name, "Generating booking requests...");
+    let mut booking_requests = Vec::with_capacity(num_users * requests_per_user);
     let flight_numbers = vec![100, 200, 300, 400, 500];
     let num_days = 30;
 
-    for &user_id in &user_ids {
-        // Create a set of already assigned flights for this user
-        let mut user_flights = std::collections::HashSet::new();
-        let mut user_requests = Vec::new();
-        let mut rng = rand::thread_rng();
+    for _ in 0..num_users * requests_per_user {
+        let user_id = user_ids[rand::thread_rng().gen_range(0..user_ids.len())];
+        let flight_number = flight_numbers[rand::thread_rng().gen_range(0..flight_numbers.len())];
+        let days = rand::thread_rng().gen_range(0..num_days);
+        let flight_date =
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap() + chrono::Duration::days(days);
 
-        // Try to generate the requested number of unique bookings
-        let mut attempts = 0;
-        while user_requests.len() < requests_per_user && attempts < 100 {
-            attempts += 1;
-
-            // Generate random flight details
-            let flight_number = flight_numbers[rng.gen_range(0..flight_numbers.len())];
-            let days = rng.gen_range(0..num_days);
-            let flight_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap() + Duration::days(days);
-
-            // Create a unique key for this flight
-            let flight_key = (flight_number, flight_date);
-
-            // Only add if this is a new flight for this user
-            if user_flights.insert(flight_key) {
-                let ticket_service = ctx.ticket_service.clone();
-                let metrics = metrics.clone();
-
-                user_requests.push((user_id, flight_number, flight_date, ticket_service, metrics));
-            }
-        }
-
-        if user_requests.len() < requests_per_user {
-            test_println!(
-                test_name,
-                "Warning: Could only generate {} unique flights for user {} (requested {})",
-                user_requests.len(),
-                user_id,
-                requests_per_user
-            );
-        }
-
-        user_flight_assignments.extend(user_requests);
+        booking_requests.push((user_id, flight_number, flight_date));
     }
-
-    test_println!(
-        test_name,
-        "Generated {} unique booking requests across {} users",
-        user_flight_assignments.len(),
-        num_users
-    );
+    // First phase: Send first 5000 booking requests
+    test_println!(test_name, "Phase 1: Sending first 5000 booking requests...");
+    let metrics = PerformanceMetrics::new();
+    let metrics = std::sync::Arc::new(std::sync::Mutex::new(metrics));
+    let booked_tickets = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let start_time = Instant::now();
 
     // Now spawn all tasks
     let mut join_set = JoinSet::new();
-    for (user_id, flight_number, flight_date, ticket_service, metrics) in user_flight_assignments {
-        join_set.spawn(async move {
-            let request_start = Instant::now();
+    for &(user_id, flight_number, flight_date) in &booking_requests[..5000] {
+        let ticket_service = ctx.ticket_service.clone();
 
+        let booked_tickets = booked_tickets.clone();
+
+        join_set.spawn(async move {
             let booking_request = TicketBookingRequest {
-                flight_number,
-                flight_date,
+                flight_number: flight_number,
+                flight_date: flight_date,
                 preferred_seat: None,
             };
 
-            let result = ticket_service
-                .book_ticket(user_id, booking_request.clone())
-                .await;
-            let latency = request_start.elapsed();
+            let result = ticket_service.book_ticket(user_id, booking_request).await;
 
-            // Update metrics
-            let mut metrics = metrics.lock().unwrap();
-            metrics.total_requests += 1;
             match &result {
                 Ok(_) => {
-                    metrics.successful_requests += 1;
                     test_println!(
                         test_name,
                         "User {} successfully booked flight {} on {:?}",
@@ -400,9 +374,12 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
                         flight_number,
                         flight_date
                     );
+                    booked_tickets
+                        .lock()
+                        .await
+                        .push((user_id, flight_number, flight_date));
                 }
                 Err(e) => {
-                    metrics.failed_requests += 1;
                     test_println!(
                         test_name,
                         "User {} failed to book flight {} on {:?}: {}",
@@ -413,25 +390,200 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
                     );
                 }
             }
-            metrics.min_latency = metrics.min_latency.min(latency);
-            metrics.max_latency = metrics.max_latency.max(latency);
-
-            let current_total =
-                metrics.avg_latency.as_nanos() as u128 * (metrics.total_requests - 1) as u128;
-            let new_avg = (current_total + latency.as_nanos()) / metrics.total_requests as u128;
-            metrics.avg_latency = std::time::Duration::from_nanos(new_avg as u64);
         });
     }
 
     // Wait for all requests to complete
     while join_set.join_next().await.is_some() {}
 
-    // Update total duration
+    // Generate seat selection requests based on successful bookings
+    test_println!(test_name, "Generating seat selection requests...");
+    let booked = booked_tickets.lock().await;
+    let mut seat_selection_requests = Vec::with_capacity(5000);
+
+    for _ in 0..5000 {
+        if let Some(&(user_id, flight_number, flight_date)) = booked.choose(&mut rand::thread_rng())
+        {
+            let seat_number = rand::thread_rng().gen_range(1..=100);
+            seat_selection_requests.push((user_id, flight_number, flight_date, seat_number));
+        }
+    }
+    drop(booked);
+
+    // Phase 2: Send remaining 5000 booking requests and 5000 seat selections
+    test_println!(test_name, "Phase 2: Sending mixed requests...");
+    let mut join_set = JoinSet::new();
+
+    // Combine both types of requests into a single vector
+    let mut mixed_requests = Vec::with_capacity(10000);
+    for &(user_id, flight_number, flight_date) in &booking_requests[5000..] {
+        mixed_requests.push(MixedRequest::Booking((user_id, flight_number, flight_date)));
+    }
+    for request in seat_selection_requests
+        .into_iter()
+        .map(MixedRequest::SeatSelection)
+    {
+        mixed_requests.push(request);
+    }
+
+    // Shuffle the requests
+    use rand::seq::SliceRandom;
+    mixed_requests.shuffle(&mut rand::thread_rng());
+
+    
+    // for request in &mixed_requests {
+    //     match request {
+    //         MixedRequest::Booking((user_id, flight_number, flight_date)) => {
+    //             test_println!(
+    //                 test_name,
+    //                 "request: User book {} flight {} on {:?}",
+    //                 user_id,
+    //                 flight_number,
+    //                 flight_date
+    //             );
+    //         }
+    //         MixedRequest::SeatSelection((
+    //             user_id,
+    //             flight_number,
+    //             flight_date,
+    //             seat_number,
+    //         )) => {
+    //             test_println!(
+    //                 test_name,
+    //                 "request: User {} select seat on flight {} on {:?} on seat {}",
+    //                 user_id,
+    //                 flight_number,
+    //                 flight_date,
+    //                 seat_number
+    //             );
+    //         }
+    //     }
+    // }
+
+    // Send all requests
+    const BATCH_SIZE: usize = 1000;
+    for chunk in mixed_requests.chunks(BATCH_SIZE) {
+        for request in chunk.to_vec() {
+            let ticket_service = ctx.ticket_service.clone();
+            let metrics = metrics.clone();
+            // let booked_tickets = booked_tickets.clone();
+
+            join_set.spawn(async move {
+                let request_start = Instant::now();
+
+                let result = match request {
+                    MixedRequest::Booking((user_id, flight_number, flight_date)) => {
+                        let booking_request = TicketBookingRequest {
+                            flight_number: flight_number,
+                            flight_date: flight_date,
+                            preferred_seat: None,
+                        };
+
+                        match ticket_service.book_ticket(user_id, booking_request).await {
+                            Ok(_) => {
+                                Ok(())
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                    MixedRequest::SeatSelection((user_id, flight_number, flight_date, seat_number)) => {
+                        match ticket_service
+                            .book_seat_for_ticket(
+                                user_id,
+                                SeatBookingRequest {
+                                    flight_number: flight_number,
+                                    flight_date: flight_date,
+                                    seat_number: seat_number,
+                                },
+                            )
+                            .await
+                        {
+                            Ok(_) => Ok(()),
+                            Err(e) => Err(e),
+                        }
+                    }
+                };
+
+                let latency = request_start.elapsed();
+
+                // Update metrics
+                let mut metrics = metrics.lock().unwrap();
+                metrics.total_requests += 1;
+                match &result {
+                    Ok(_) => {
+                        metrics.successful_requests += 1;
+                        match request {
+                            MixedRequest::Booking((user_id, flight_number, flight_date)) => {
+                                test_println!(
+                                    test_name,
+                                    "User {} successfully booked flight {} on {:?}",
+                                    user_id,
+                                    flight_number,
+                                    flight_date
+                                );
+                            }
+                            MixedRequest::SeatSelection((
+                                user_id,
+                                flight_number,
+                                flight_date,
+                                seat_number,
+                            )) => {
+                                test_println!(
+                                    test_name,
+                                    "User {} successfully selected seat on flight {} on {:?} on seat {}",
+                                    user_id,
+                                    flight_number,
+                                    flight_date,
+                                    seat_number
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        metrics.failed_requests += 1;
+                        match request {
+                            MixedRequest::Booking((user_id, flight_number, flight_date)) => {
+                                test_println!(
+                                    test_name,
+                                    "User {} failed to booked flight {} on {:?}: {}",
+                                    user_id,
+                                    flight_number,
+                                    flight_date, 
+                                    e
+                                );
+                            }
+                            MixedRequest::SeatSelection((
+                                user_id,
+                                flight_number,
+                                flight_date,
+                                seat_number,
+                            )) => {
+                                test_println!(
+                                    test_name,
+                                    "User {} failed to select seat on flight {} on {:?} on seat {}: {}",
+                                    user_id,
+                                    flight_number,
+                                    flight_date,
+                                    seat_number, 
+                                    e
+                                );
+                            }
+                        }
+                    },
+                }
+                metrics.update_latency(latency);
+            });
+            
+            while join_set.join_next().await.is_some() {}
+        }
+    }
+
+    while join_set.join_next().await.is_some() {}
+
+    // Update total duration and print results
     let mut metrics = metrics.lock().unwrap();
     metrics.total_duration = start_time.elapsed();
-
-    // Print results
-    metrics.print_summary(&test_name);
+    metrics.print_summary(test_name);
 
     Ok(())
 }
