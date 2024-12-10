@@ -461,121 +461,119 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
     // }
 
     // Send all requests
-    const BATCH_SIZE: usize = 1000;
-    for chunk in mixed_requests.chunks(BATCH_SIZE) {
-        for request in chunk.to_vec() {
-            let ticket_service = ctx.ticket_service.clone();
-            let metrics = metrics.clone();
-            // let booked_tickets = booked_tickets.clone();
+    // const BATCH_SIZE: usize = 1000;
+    // for chunk in mixed_requests.chunks(BATCH_SIZE) {
+    //     for request in chunk.to_vec() {
+    for request in mixed_requests {
+        let ticket_service = ctx.ticket_service.clone();
+        let metrics = metrics.clone();
+        // let booked_tickets = booked_tickets.clone();
 
-            join_set.spawn(async move {
-                let request_start = Instant::now();
+        join_set.spawn(async move {
+            let request_start = Instant::now();
 
-                let result = match request {
-                    MixedRequest::Booking((user_id, flight_number, flight_date)) => {
-                        let booking_request = TicketBookingRequest {
-                            flight_number: flight_number,
-                            flight_date: flight_date,
-                            preferred_seat: None,
-                        };
+            let result = match request {
+                MixedRequest::Booking((user_id, flight_number, flight_date)) => {
+                    let booking_request = TicketBookingRequest {
+                        flight_number: flight_number,
+                        flight_date: flight_date,
+                        preferred_seat: None,
+                    };
 
-                        match ticket_service.book_ticket(user_id, booking_request).await {
-                            Ok(_) => {
-                                Ok(())
-                            }
-                            Err(e) => Err(e),
+                    match ticket_service.book_ticket(user_id, booking_request).await {
+                        Ok(_) => {
+                            Ok(())
                         }
+                        Err(e) => Err(e),
                     }
-                    MixedRequest::SeatSelection((user_id, flight_number, flight_date, seat_number)) => {
-                        match ticket_service
-                            .book_seat_for_ticket(
-                                user_id,
-                                SeatBookingRequest {
-                                    flight_number: flight_number,
-                                    flight_date: flight_date,
-                                    seat_number: seat_number,
-                                },
-                            )
-                            .await
-                        {
-                            Ok(_) => Ok(()),
-                            Err(e) => Err(e),
-                        }
-                    }
-                };
-
-                let latency = request_start.elapsed();
-
-                // Update metrics
-                let mut metrics = metrics.lock().unwrap();
-                metrics.total_requests += 1;
-                match &result {
-                    Ok(_) => {
-                        metrics.successful_requests += 1;
-                        match request {
-                            MixedRequest::Booking((user_id, flight_number, flight_date)) => {
-                                test_println!(
-                                    test_name,
-                                    "User {} successfully booked flight {} on {:?}",
-                                    user_id,
-                                    flight_number,
-                                    flight_date
-                                );
-                            }
-                            MixedRequest::SeatSelection((
-                                user_id,
-                                flight_number,
-                                flight_date,
-                                seat_number,
-                            )) => {
-                                test_println!(
-                                    test_name,
-                                    "User {} successfully selected seat on flight {} on {:?} on seat {}",
-                                    user_id,
-                                    flight_number,
-                                    flight_date,
-                                    seat_number
-                                );
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        metrics.failed_requests += 1;
-                        match request {
-                            MixedRequest::Booking((user_id, flight_number, flight_date)) => {
-                                test_println!(
-                                    test_name,
-                                    "User {} failed to booked flight {} on {:?}: {}",
-                                    user_id,
-                                    flight_number,
-                                    flight_date, 
-                                    e
-                                );
-                            }
-                            MixedRequest::SeatSelection((
-                                user_id,
-                                flight_number,
-                                flight_date,
-                                seat_number,
-                            )) => {
-                                test_println!(
-                                    test_name,
-                                    "User {} failed to select seat on flight {} on {:?} on seat {}: {}",
-                                    user_id,
-                                    flight_number,
-                                    flight_date,
-                                    seat_number, 
-                                    e
-                                );
-                            }
-                        }
-                    },
                 }
-                metrics.update_latency(latency);
-            });
-            
-            while join_set.join_next().await.is_some() {}
-        }
+                MixedRequest::SeatSelection((user_id, flight_number, flight_date, seat_number)) => {
+                    match ticket_service
+                        .book_seat_for_ticket(
+                            user_id,
+                            SeatBookingRequest {
+                                flight_number: flight_number,
+                                flight_date: flight_date,
+                                seat_number: seat_number,
+                            },
+                        )
+                        .await
+                    {
+                        Ok(_) => Ok(()),
+                        Err(e) => Err(e),
+                    }
+                }
+            };
+
+            let latency = request_start.elapsed();
+
+            // Update metrics
+            let mut metrics = metrics.lock().unwrap();
+            metrics.total_requests += 1;
+            match &result {
+                Ok(_) => {
+                    metrics.successful_requests += 1;
+                    match request {
+                        MixedRequest::Booking((user_id, flight_number, flight_date)) => {
+                            test_println!(
+                                test_name,
+                                "User {} successfully booked flight {} on {:?}",
+                                user_id,
+                                flight_number,
+                                flight_date
+                            );
+                        }
+                        MixedRequest::SeatSelection((
+                            user_id,
+                            flight_number,
+                            flight_date,
+                            seat_number,
+                        )) => {
+                            test_println!(
+                                test_name,
+                                "User {} successfully selected seat on flight {} on {:?} on seat {}",
+                                user_id,
+                                flight_number,
+                                flight_date,
+                                seat_number
+                            );
+                        }
+                    }
+                }
+                Err(e) => {
+                    metrics.failed_requests += 1;
+                    match request {
+                        MixedRequest::Booking((user_id, flight_number, flight_date)) => {
+                            test_println!(
+                                test_name,
+                                "User {} failed to booked flight {} on {:?}: {}",
+                                user_id,
+                                flight_number,
+                                flight_date, 
+                                e
+                            );
+                        }
+                        MixedRequest::SeatSelection((
+                            user_id,
+                            flight_number,
+                            flight_date,
+                            seat_number,
+                        )) => {
+                            test_println!(
+                                test_name,
+                                "User {} failed to select seat on flight {} on {:?} on seat {}: {}",
+                                user_id,
+                                flight_number,
+                                flight_date,
+                                seat_number, 
+                                e
+                            );
+                        }
+                    }
+                },
+            }
+            metrics.update_latency(latency);
+        });
     }
 
     while join_set.join_next().await.is_some() {}
