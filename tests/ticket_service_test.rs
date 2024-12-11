@@ -1,6 +1,7 @@
 use airline_booking_system::{
     models::{
-        ticket::TicketBookingRequest, ticket::SeatBookingRequest,
+        ticket::SeatBookingRequest,
+        ticket::TicketBookingRequest,
         user::{Role, UserRegistrationRequest},
     },
     services::{ticket_service::TicketService, user_service::UserService},
@@ -102,7 +103,7 @@ async fn setup_database(
 }
 
 #[test_context(TicketServiceContext)]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 async fn test_concurrent_ticket_booking_capacity1(
     ctx: &TicketServiceContext,
 ) -> Result<(), AppError> {
@@ -211,7 +212,7 @@ async fn test_concurrent_ticket_booking_capacity1(
 }
 
 #[test_context(TicketServiceContext)]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 async fn test_concurrent_ticket_booking_capacity5(
     ctx: &TicketServiceContext,
 ) -> Result<(), AppError> {
@@ -325,10 +326,10 @@ async fn test_concurrent_ticket_booking_capacity5(
 }
 
 #[test_context(TicketServiceContext)]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 async fn test_concurrent_seat_booking1(ctx: &TicketServiceContext) -> Result<(), AppError> {
     let test_name = "test_concurrent_seat_booking1";
-    
+
     // Setup: Create a flight with capacity 10
     let flight_number = 20;
     let capacity = 10;
@@ -365,7 +366,11 @@ async fn test_concurrent_seat_booking1(ctx: &TicketServiceContext) -> Result<(),
     }
 
     // Register users and book tickets (without seats)
-    test_println!(test_name, "Registering {} users and booking tickets...", num_users);
+    test_println!(
+        test_name,
+        "Registering {} users and booking tickets...",
+        num_users
+    );
     let mut user_ids = Vec::new();
     for i in 0..num_users {
         // Register user
@@ -378,15 +383,17 @@ async fn test_concurrent_seat_booking1(ctx: &TicketServiceContext) -> Result<(),
             gender: "male".to_string(),
         };
         let user_id = ctx.user_service.register_user(user).await?;
-        
+
         // Book ticket (without seat)
         let booking_request = TicketBookingRequest {
             flight_number,
             flight_date,
             preferred_seat: None,
         };
-        ctx.ticket_service.book_ticket(user_id, booking_request).await?;
-        
+        ctx.ticket_service
+            .book_ticket(user_id, booking_request)
+            .await?;
+
         user_ids.push(user_id);
     }
 
@@ -420,7 +427,12 @@ async fn test_concurrent_seat_booking1(ctx: &TicketServiceContext) -> Result<(),
         match result.unwrap() {
             (user_id, Ok(_)) => {
                 successful_bookings += 1;
-                test_println!(test_name, "User {} successfully booked seat {}", user_id, target_seat);
+                test_println!(
+                    test_name,
+                    "User {} successfully booked seat {}",
+                    user_id,
+                    target_seat
+                );
             }
             (user_id, Err(e)) => {
                 test_println!(test_name, "User {} failed to book seat: {}", user_id, e);
@@ -473,10 +485,10 @@ async fn test_concurrent_seat_booking1(ctx: &TicketServiceContext) -> Result<(),
 }
 
 #[test_context(TicketServiceContext)]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(), AppError> {
     let test_name = "test_concurrent_seat_booking5";
-    
+
     // Setup: Create a flight with capacity 10
     let flight_number = 25;
     let capacity = 30;
@@ -513,7 +525,11 @@ async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(),
     }
 
     // Register users and book tickets (without seats)
-    test_println!(test_name, "Registering {} users and booking tickets...", num_users);
+    test_println!(
+        test_name,
+        "Registering {} users and booking tickets...",
+        num_users
+    );
     let mut user_ids = Vec::new();
     for i in 0..num_users {
         // Register user
@@ -526,15 +542,17 @@ async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(),
             gender: "male".to_string(),
         };
         let user_id = ctx.user_service.register_user(user).await?;
-        
+
         // Book ticket (without seat)
         let booking_request = TicketBookingRequest {
             flight_number,
             flight_date,
             preferred_seat: None,
         };
-        ctx.ticket_service.book_ticket(user_id, booking_request).await?;
-        
+        ctx.ticket_service
+            .book_ticket(user_id, booking_request)
+            .await?;
+
         user_ids.push(user_id);
     }
 
@@ -558,7 +576,9 @@ async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(),
     let mut join_set = JoinSet::new();
     for (user_id, ticket_service, request) in tasks {
         join_set.spawn(async move {
-            let result = ticket_service.book_seat_for_ticket(user_id, request.clone()).await;
+            let result = ticket_service
+                .book_seat_for_ticket(user_id, request.clone())
+                .await;
             (user_id, request.seat_number, result)
         });
     }
@@ -570,10 +590,21 @@ async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(),
             (user_id, seat_number, Ok(_)) => {
                 successful_bookings += 1;
                 booked_seats.insert(seat_number);
-                test_println!(test_name, "User {} successfully booked seat {}", user_id, seat_number);
+                test_println!(
+                    test_name,
+                    "User {} successfully booked seat {}",
+                    user_id,
+                    seat_number
+                );
             }
             (user_id, seat_number, Err(e)) => {
-                test_println!(test_name, "User {} failed to book seat {}: {}", user_id, seat_number, e);
+                test_println!(
+                    test_name,
+                    "User {} failed to book seat {}: {}",
+                    user_id,
+                    seat_number,
+                    e
+                );
             }
         }
     }
@@ -600,7 +631,8 @@ async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(),
 
         assert_eq!(
             seat_info.seat_status, "BOOKED",
-            "Seat {} should be marked as booked", seat_number
+            "Seat {} should be marked as booked",
+            seat_number
         );
     }
 
@@ -620,7 +652,8 @@ async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(),
 
         assert_eq!(
             booked_tickets.count, 1,
-            "Seat {} should be booked exactly once", seat_number
+            "Seat {} should be booked exactly once",
+            seat_number
         );
     }
 
