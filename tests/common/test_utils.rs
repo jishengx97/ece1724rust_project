@@ -4,9 +4,9 @@ use sqlx::mysql::MySqlPool as Pool;
 use sqlx::mysql::MySqlPoolOptions;
 use sqlx::Error;
 use std::env;
+use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
-use std::time::Duration;
 
 #[macro_export]
 macro_rules! test_println {
@@ -39,6 +39,7 @@ async fn create_connection_pool_without_db() -> Result<Pool, Error> {
     MySqlPoolOptions::new()
         .max_connections(100)
         .acquire_timeout(Duration::from_secs(5))
+        .test_before_acquire(false)
         .idle_timeout(Duration::from_secs(10))
         .max_lifetime(Duration::from_secs(30))
         .connect(&base_url)
