@@ -87,7 +87,7 @@ async fn setup_database(
     .execute(&ctx.pool)
     .await?;
 
-    sqlx::query!(
+    let flight_result = sqlx::query!(
         r#"
         INSERT INTO flight (flight_number, flight_date, available_tickets, version)
         VALUES (?, ?, ?, 1)
@@ -98,6 +98,21 @@ async fn setup_database(
     )
     .execute(&ctx.pool)
     .await?;
+
+    // Create seat info
+    let flight_id = flight_result.last_insert_id() as i32;
+    for seat_number in 1..=capacity {
+        sqlx::query!(
+            r#"
+            INSERT INTO seat_info (flight_id, seat_number, seat_status, version)
+            VALUES (?, ?, 'AVAILABLE', 0)
+            "#,
+            flight_id,
+            seat_number
+        )
+        .execute(&ctx.pool)
+        .await?;
+    }
 
     Ok(())
 }
@@ -340,8 +355,7 @@ async fn test_concurrent_seat_booking1(ctx: &TicketServiceContext) -> Result<(),
     // Setup database
     setup_database(ctx, flight_number, capacity, flight_date).await?;
 
-    // Create seat info
-    test_println!(test_name, "Creating seat information...");
+    // Get flight_id
     let flight_id = sqlx::query!(
         "SELECT flight_id FROM flight WHERE flight_number = ? AND flight_date = ?",
         flight_number,
@@ -350,20 +364,6 @@ async fn test_concurrent_seat_booking1(ctx: &TicketServiceContext) -> Result<(),
     .fetch_one(&ctx.pool)
     .await?
     .flight_id;
-
-    // Insert seats
-    for seat_number in 1..=capacity {
-        sqlx::query!(
-            r#"
-            INSERT INTO seat_info (flight_id, seat_number, seat_status, version)
-            VALUES (?, ?, 'AVAILABLE', 0)
-            "#,
-            flight_id,
-            seat_number,
-        )
-        .execute(&ctx.pool)
-        .await?;
-    }
 
     // Register users and book tickets (without seats)
     test_println!(
@@ -499,8 +499,7 @@ async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(),
     // Setup database
     setup_database(ctx, flight_number, capacity, flight_date).await?;
 
-    // Create seat info
-    test_println!(test_name, "Creating seat information...");
+    // Get flight_id
     let flight_id = sqlx::query!(
         "SELECT flight_id FROM flight WHERE flight_number = ? AND flight_date = ?",
         flight_number,
@@ -509,20 +508,6 @@ async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(),
     .fetch_one(&ctx.pool)
     .await?
     .flight_id;
-
-    // Insert seats
-    for seat_number in 1..=capacity {
-        sqlx::query!(
-            r#"
-            INSERT INTO seat_info (flight_id, seat_number, seat_status, version)
-            VALUES (?, ?, 'AVAILABLE', 0)
-            "#,
-            flight_id,
-            seat_number,
-        )
-        .execute(&ctx.pool)
-        .await?;
-    }
 
     // Register users and book tickets (without seats)
     test_println!(
@@ -656,6 +641,76 @@ async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(),
             seat_number
         );
     }
+
+    Ok(())
+}
+
+#[test_context(TicketServiceContext)]
+#[tokio::test]
+async fn test_get_booking_history(ctx: &TicketServiceContext) -> Result<(), AppError> {
+    // Create test user
+    let user = UserRegistrationRequest {
+        username: "history_test_user".to_string(),
+        password: "test_password".to_string(),
+        role: Role::User,
+        name: "History Test User".to_string(),
+        birth_date: NaiveDate::from_ymd_opt(1990, 1, 1).unwrap(),
+        gender: "male".to_string(),
+    };
+    let user_id = ctx.user_service.register_user(user).await?;
+
+    // Create two different flights
+    let flight_number1 = 301;
+    let flight_number2 = 302;
+    let capacity = 10;
+    let flight_date1 = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    let flight_date2 = NaiveDate::from_ymd_opt(2024, 1, 2).unwrap();
+
+    // Setup database
+    setup_database(ctx, flight_number1, capacity, flight_date1).await?;
+    setup_database(ctx, flight_number2, capacity, flight_date2).await?;
+
+    // Book tickets for two different flights
+    let booking_request1 = TicketBookingRequest {
+        flight_number: flight_number1,
+        flight_date: flight_date1,
+        preferred_seat: Some(1), 
+    };
+    
+    let booking_request2 = TicketBookingRequest {
+        flight_number: flight_number2,
+        flight_date: flight_date2,
+        preferred_seat: None, 
+    };
+
+    // Book tickets
+    ctx.ticket_service
+        .book_ticket(user_id, booking_request1)
+        .await?;
+    ctx.ticket_service
+        .book_ticket(user_id, booking_request2)
+        .await?;
+
+    // Get booking history
+    let history = ctx.ticket_service.get_history(user_id).await?;
+
+    // Assert
+    assert_eq!(history.flights.len(), 2, "Should have 2 flight bookings");
+
+    let first_booking = &history.flights[0];
+    let second_booking = &history.flights[1];
+
+    assert_eq!(first_booking.flight_number, flight_number2);
+    assert_eq!(first_booking.flight_date, flight_date2);
+    assert_eq!(first_booking.seat_number, "Not Selected");
+    assert_eq!(first_booking.departure_city, "New York");
+    assert_eq!(first_booking.destination_city, "London");
+
+    assert_eq!(second_booking.flight_number, flight_number1);
+    assert_eq!(second_booking.flight_date, flight_date1);
+    assert_eq!(second_booking.seat_number, "1");
+    assert_eq!(second_booking.departure_city, "New York");
+    assert_eq!(second_booking.destination_city, "London");
 
     Ok(())
 }
