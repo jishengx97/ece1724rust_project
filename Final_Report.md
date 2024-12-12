@@ -66,10 +66,26 @@ brew services start mysql
 # login as root user
 sudo mysql -u root
 # enter system root password as required
-# update the root user password (replace <some secret password> with the actual password)
-mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password  by '<some secret password>;
+# update the root user password (replace <your secret password> with the actual password)
+mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password  by '<your secret password>;
 mysql> FLUSH PRIVILEGES;
 mysql> quit
 # test logging in as the root user with the above password
 mysql -u root -p
+```
+
+### 2. Setup the database
+```bash
+mysql -u root -p"<your secret password>" < util/create_database.sql
+```
+
+### 3. Insert some testing data into the database
+```bash
+# install necessary python packages
+pip install mysql-connector-python python-dotenv
+python util/create_flight_script.py
+```
+
+```bash
+curl -H 'Accept: application/json' -H "Authorization: Bearer ${TOKEN}" https://{hostname}/api/myresource
 ```
