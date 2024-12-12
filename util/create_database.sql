@@ -1,8 +1,8 @@
-create database airline_reservation_system;
+create database IF NOT EXISTS airline_reservation_system;
 use airline_reservation_system;
 
 -- Table aircraft
-create table aircraft
+create table IF NOT EXISTS aircraft
 (
     aircraft_id int not null
         primary key,
@@ -10,25 +10,24 @@ create table aircraft
 );
 
 -- Default Aircraft
-INSERT INTO aircraft (aircraft_id, capacity)
+INSERT IGNORE INTO aircraft (aircraft_id, capacity)
 VALUES (737, 169);
 
-INSERT INTO aircraft (aircraft_id, capacity)
+INSERT IGNORE INTO aircraft (aircraft_id, capacity)
 VALUES (777, 400);
 
-INSERT INTO aircraft (aircraft_id, capacity)
+INSERT IGNORE INTO aircraft (aircraft_id, capacity)
 VALUES (320, 146);
 
 
-INSERT INTO aircraft (aircraft_id, capacity)
+INSERT IGNORE INTO aircraft (aircraft_id, capacity)
 VALUES (900, 76);
 
-INSERT INTO aircraft (aircraft_id, capacity)
+INSERT IGNORE INTO aircraft (aircraft_id, capacity)
 VALUES (200, 50);
 
-
 -- Table: User
-create table user
+create table IF NOT EXISTS user
 (
     id       int auto_increment
         primary key,
@@ -39,9 +38,8 @@ create table user
         unique (username)
 );
 
-
 -- Table Customer Info
-create table customer_info
+create table IF NOT EXISTS customer_info
 (
     id         int                     not null
         primary key,
@@ -53,9 +51,8 @@ create table customer_info
             on delete cascade
 );
 
-
 -- Table flightRoute route
-create table flight_route
+create table IF NOT EXISTS flight_route
 (
     flight_number    int                        not null
         primary key,
@@ -72,9 +69,8 @@ create table flight_route
             on update cascade on delete cascade
 );
 
-
 -- Table flight
-create table flight
+create table IF NOT EXISTS flight
 (
     flight_id         int auto_increment
         primary key,
@@ -87,10 +83,8 @@ create table flight
             on update cascade on delete cascade
 );
 
-
-
 -- Table flight seat info
-create table seat_info
+create table IF NOT EXISTS seat_info
 (
     flight_id   int                                                             not null,
     seat_number int                                                             not null,
@@ -100,15 +94,12 @@ create table seat_info
         unique (flight_id, seat_number),
     constraint seat_info_flight_flight_id_fk
         foreign key (flight_id) references flight (flight_id)
-            on delete cascade
+            on delete cascade,
+    primary key (flight_id, seat_number)
 );
 
-alter table seat_info
-    add primary key (flight_id, seat_number);
-
-
 -- Table ticket
-create table ticket
+create table IF NOT EXISTS ticket
 (
     id            int auto_increment
         primary key,
