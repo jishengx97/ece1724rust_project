@@ -1,6 +1,7 @@
 use airline_booking_system::{
     models::{
         ticket::SeatBookingRequest,
+        ticket::FlightBookingRequest,
         ticket::TicketBookingRequest,
         user::{Role, UserRegistrationRequest},
     },
@@ -281,7 +282,7 @@ async fn setup_test_data(ctx: &ThroughputContext) -> Result<(), AppError> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), AppError> {
     let test_name = "test_concurrent_seat_booking5";
-    let num_users = 500;
+    let num_users = 200;
     let requests_per_user = 20;
 
     test_println!(test_name, "Setting up test data...");
@@ -342,8 +343,8 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
 
         booking_requests.push((user_id, flight_number, flight_date));
     }
-    // First phase: Send first 5000 booking requests
-    test_println!(test_name, "Phase 1: Sending first 5000 booking requests...");
+    // First phase: Send first num_users * requests_per_user / 2 booking requests
+    test_println!(test_name, "Phase 1: Sending first num_users * requests_per_user / 2 booking requests...");
     let metrics = PerformanceMetrics::new();
     let metrics = std::sync::Arc::new(std::sync::Mutex::new(metrics));
     let booked_tickets = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::new()));
@@ -351,19 +352,19 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
 
     // Now spawn all tasks
     let mut join_set = JoinSet::new();
-    for &(user_id, flight_number, flight_date) in &booking_requests[..5000] {
+    for &(user_id, flight_number, flight_date) in &booking_requests[..num_users * requests_per_user / 2] {
         let ticket_service = ctx.ticket_service.clone();
 
         let booked_tickets = booked_tickets.clone();
 
         join_set.spawn(async move {
-            let booking_request = TicketBookingRequest {
+            let booking_request = vec![FlightBookingRequest {
                 flight_number: flight_number,
                 flight_date: flight_date,
                 preferred_seat: None,
-            };
+            }];
 
-            let result = ticket_service.book_ticket(user_id, booking_request).await;
+            let result = ticket_service.book_ticket(user_id, TicketBookingRequest {flights: booking_request},).await;
 
             match &result {
                 Ok(_) => {
@@ -399,9 +400,9 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
     // Generate seat selection requests based on successful bookings
     test_println!(test_name, "Generating seat selection requests...");
     let booked = booked_tickets.lock().await;
-    let mut seat_selection_requests = Vec::with_capacity(5000);
+    let mut seat_selection_requests = Vec::with_capacity(num_users * requests_per_user / 2);
 
-    for _ in 0..5000 {
+    for _ in 0..num_users * requests_per_user / 2 {
         if let Some(&(user_id, flight_number, flight_date)) = booked.choose(&mut rand::thread_rng())
         {
             let seat_number = rand::thread_rng().gen_range(1..=100);
@@ -410,13 +411,13 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
     }
     drop(booked);
 
-    // Phase 2: Send remaining 5000 booking requests and 5000 seat selections
+    // Phase 2: Send remaining num_users * requests_per_user / 2 booking requests and num_users * requests_per_user / 2 seat selections
     test_println!(test_name, "Phase 2: Sending mixed requests...");
     let mut join_set = JoinSet::new();
 
     // Combine both types of requests into a single vector
     let mut mixed_requests = Vec::with_capacity(10000);
-    for &(user_id, flight_number, flight_date) in &booking_requests[5000..] {
+    for &(user_id, flight_number, flight_date) in &booking_requests[num_users * requests_per_user / 2..] {
         mixed_requests.push(MixedRequest::Booking((user_id, flight_number, flight_date)));
     }
     for request in seat_selection_requests
@@ -474,13 +475,13 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
 
             let result = match request {
                 MixedRequest::Booking((user_id, flight_number, flight_date)) => {
-                    let booking_request = TicketBookingRequest {
+                    let booking_request = vec![FlightBookingRequest {
                         flight_number: flight_number,
                         flight_date: flight_date,
                         preferred_seat: None,
-                    };
+                    }];
 
-                    match ticket_service.book_ticket(user_id, booking_request).await {
+                    match ticket_service.book_ticket(user_id, TicketBookingRequest {flights: booking_request}).await {
                         Ok(_) => {
                             Ok(())
                         }

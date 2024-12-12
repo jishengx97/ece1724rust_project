@@ -1,5 +1,6 @@
 use airline_booking_system::{
     models::{
+        ticket::FlightBookingRequest,
         ticket::SeatBookingRequest,
         ticket::TicketBookingRequest,
         user::{Role, UserRegistrationRequest},
@@ -148,11 +149,11 @@ async fn test_concurrent_ticket_booking_capacity1(
     }
 
     // Create booking request
-    let booking_request = TicketBookingRequest {
+    let booking_request = vec![FlightBookingRequest {
         flight_number,
         flight_date,
         preferred_seat: None,
-    };
+    }];
 
     test_println!(test_name, "Starting concurrent booking attempts...");
     // Prepare all tasks first
@@ -167,7 +168,9 @@ async fn test_concurrent_ticket_booking_capacity1(
     let mut join_set = JoinSet::new();
     for (user_id, ticket_service, request) in tasks {
         join_set.spawn(async move {
-            let result = ticket_service.book_ticket(user_id, request).await;
+            let result = ticket_service
+                .book_ticket(user_id, TicketBookingRequest { flights: request })
+                .await;
             (user_id, result)
         });
     }
@@ -257,11 +260,11 @@ async fn test_concurrent_ticket_booking_capacity5(
     }
 
     // Create booking request
-    let booking_request = TicketBookingRequest {
+    let booking_request = vec![FlightBookingRequest {
         flight_number,
         flight_date,
         preferred_seat: None,
-    };
+    }];
 
     test_println!(test_name, "Starting concurrent booking attempts...");
     // Prepare all tasks first
@@ -276,7 +279,9 @@ async fn test_concurrent_ticket_booking_capacity5(
     let mut join_set = JoinSet::new();
     for (user_id, ticket_service, request) in tasks {
         join_set.spawn(async move {
-            let result = ticket_service.book_ticket(user_id, request).await;
+            let result = ticket_service
+                .book_ticket(user_id, TicketBookingRequest { flights: request })
+                .await;
             (user_id, result)
         });
     }
@@ -385,13 +390,18 @@ async fn test_concurrent_seat_booking1(ctx: &TicketServiceContext) -> Result<(),
         let user_id = ctx.user_service.register_user(user).await?;
 
         // Book ticket (without seat)
-        let booking_request = TicketBookingRequest {
+        let booking_request = vec![FlightBookingRequest {
             flight_number,
             flight_date,
             preferred_seat: None,
-        };
+        }];
         ctx.ticket_service
-            .book_ticket(user_id, booking_request)
+            .book_ticket(
+                user_id,
+                TicketBookingRequest {
+                    flights: booking_request,
+                },
+            )
             .await?;
 
         user_ids.push(user_id);
@@ -529,13 +539,18 @@ async fn test_concurrent_seat_booking5(ctx: &TicketServiceContext) -> Result<(),
         let user_id = ctx.user_service.register_user(user).await?;
 
         // Book ticket (without seat)
-        let booking_request = TicketBookingRequest {
+        let booking_request = vec![FlightBookingRequest {
             flight_number,
             flight_date,
             preferred_seat: None,
-        };
+        }];
         ctx.ticket_service
-            .book_ticket(user_id, booking_request)
+            .book_ticket(
+                user_id,
+                TicketBookingRequest {
+                    flights: booking_request,
+                },
+            )
             .await?;
 
         user_ids.push(user_id);
@@ -671,24 +686,34 @@ async fn test_get_booking_history(ctx: &TicketServiceContext) -> Result<(), AppE
     setup_database(ctx, flight_number2, capacity, flight_date2).await?;
 
     // Book tickets for two different flights
-    let booking_request1 = TicketBookingRequest {
+    let booking_request1 = vec![FlightBookingRequest {
         flight_number: flight_number1,
         flight_date: flight_date1,
-        preferred_seat: Some(1), 
-    };
-    
-    let booking_request2 = TicketBookingRequest {
+        preferred_seat: Some(1),
+    }];
+
+    let booking_request2 = vec![FlightBookingRequest {
         flight_number: flight_number2,
         flight_date: flight_date2,
-        preferred_seat: None, 
-    };
+        preferred_seat: None,
+    }];
 
     // Book tickets
     ctx.ticket_service
-        .book_ticket(user_id, booking_request1)
+        .book_ticket(
+            user_id,
+            TicketBookingRequest {
+                flights: booking_request1,
+            },
+        )
         .await?;
     ctx.ticket_service
-        .book_ticket(user_id, booking_request2)
+        .book_ticket(
+            user_id,
+            TicketBookingRequest {
+                flights: booking_request2,
+            },
+        )
         .await?;
 
     // Get booking history
