@@ -25,9 +25,32 @@ impl TicketService {
         request: TicketBookingRequest,
     ) -> AppResult<TicketBookingResponse> {
         // get the flight information
-        // TODO: it is assumed legal here
+        // Check this flight exist
+        let flight = sqlx::query_as!(
+            Flight,
+            r#"
+            SELECT flight_id, flight_number, flight_date, available_tickets, version 
+            FROM flight 
+            WHERE flight_number = ? 
+            AND flight_date = ?
+            "#,
+            request.flight_number,
+            request.flight_date
+        )
+        .fetch_optional(&self.pool)
+        .await?;
 
-        // TODO: do not allow re-booking the same flight for now
+        match flight {
+            Some(_) => {}
+            None => {
+                return Err(AppError::BadRequest(format!(
+                    "Flight {} does not exist on {}\n",
+                    request.flight_number, request.flight_date
+                )))
+            }
+        }
+
+        // do not allow re-booking the same flight for now
         let existing_ticket = sqlx::query!(
             r#"SELECT id, seat_number FROM ticket 
             WHERE customer_id = ? 
@@ -219,7 +242,7 @@ impl TicketService {
 
             if update_result.rows_affected() == 0 {
                 tx.rollback().await?;
-                
+
                 // sleep a bit to prevent from deadlock
                 let millis = rand::thread_rng().gen_range(1..=50);
                 tokio::time::sleep(tokio::time::Duration::from_millis(millis)).await;
@@ -266,6 +289,31 @@ impl TicketService {
         customer_id: i32,
         request: SeatBookingRequest,
     ) -> AppResult<bool> {
+        // Check this flight exist
+        let flight = sqlx::query_as!(
+            Flight,
+            r#"
+            SELECT flight_id, flight_number, flight_date, available_tickets, version 
+            FROM flight 
+            WHERE flight_number = ? 
+            AND flight_date = ?
+            "#,
+            request.flight_number,
+            request.flight_date
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match flight {
+            Some(_) => {}
+            None => {
+                return Err(AppError::BadRequest(format!(
+                    "Flight {} does not exist on {}\n",
+                    request.flight_number, request.flight_date
+                )))
+            }
+        }
+
         let flight = sqlx::query!(
             r#"SELECT flight_id FROM flight 
             WHERE flight_number = ? AND flight_date = ?"#,
