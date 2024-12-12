@@ -41,33 +41,28 @@ Rust has strong frameworks, like Rocket, for handling REST API requests. We’ll
 
 ## Reproducibility
 
-### 1. Install the `mysql` database
+### 1. Install and configure the `MySQL` database
 
 #### Ubuntu Installation
 ```bash
 sudo apt update
 sudo apt install mysql-server
 sudo systemctl start mysql.service
-# login as root user
-sudo mysql -u root
-# enter system root password as required
-# update the root user password (replace <some secret password> with the actual password)
-mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password  by '<some secret password>;
-mysql> FLUSH PRIVILEGES;
-mysql> quit
-# test logging in as the root user with the above password
-mysql -u root -p
 ```
 
 #### macOS Installation
 ```zsh
 brew install mysql
 brew services start mysql
+```
+
+#### Configure the database after installation
+```bash
 # login as root user
 sudo mysql -u root
 # enter system root password as required
-# update the root user password (replace <your secret password> with the actual password)
-mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password  by '<your secret password>;
+# update the root user password (replace <some secret password> with the actual password)
+mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password  by '<some secret password>;
 mysql> FLUSH PRIVILEGES;
 mysql> quit
 # test logging in as the root user with the above password
