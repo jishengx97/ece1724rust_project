@@ -1,8 +1,8 @@
 use crate::models::flight::Flight;
 use crate::models::flight::SeatStatus;
 use crate::models::ticket::{
-    BookingHistoryDetail, BookingHistoryResponse, SeatBookingRequest, TicketBookingRequest,
-    TicketBookingResponse,
+    BookingHistoryDetail, BookingHistoryResponse, FlightBookingRequest, FlightBookingResponse,
+    SeatBookingRequest, TicketBookingRequest, TicketBookingResponse,
 };
 use crate::utils::error::{AppError, AppResult};
 use chrono::{NaiveDate, NaiveTime};
@@ -24,10 +24,130 @@ impl TicketService {
         user_id: i32,
         request: TicketBookingRequest,
     ) -> AppResult<TicketBookingResponse> {
-        // get the flight information
-        // TODO: it is assumed legal here
+        let mut flight_booking_results = Vec::new();
+        let mut fail_to_choose_seat = false;
+        for flight_request in &request.flights {
+            let has_prefered_seat = flight_request.preferred_seat.is_some();
+            let flight_booking_result = self
+                .book_ticket_for_flight(user_id, flight_request.clone())
+                .await;
 
-        // TODO: do not allow re-booking the same flight for now
+            match flight_booking_result {
+                Ok(r) => {
+                    if has_prefered_seat && r.seat_number.is_none() {
+                        fail_to_choose_seat = true;
+                    }
+                    flight_booking_results.push(r);
+                }
+                Err(e) => {
+                    // revert existing bookings
+                    for existing_booking in &flight_booking_results {
+                        self.revert_booking(existing_booking).await?;
+                    }
+                    return Err(AppError::ValidationError(format!(
+                        "Failed to book some of your flights, please try again: {}",
+                        e.to_string()
+                    )));
+                }
+            }
+        }
+        Ok(TicketBookingResponse {
+            booking_status: if !fail_to_choose_seat {
+                "Confirmed".to_string()
+            } else {
+                "Confirmed booking, however the preferred seat is currently unavaiable, please try again later.".to_string()
+            },
+            flight_bookings: flight_booking_results,
+        })
+    }
+
+    async fn revert_booking(&self, request: &FlightBookingResponse) -> AppResult<()> {
+        let flight = sqlx::query!(
+            r#"
+            SELECT flight_id
+            FROM ticket
+            WHERE id = ?
+            "#,
+            request.ticket_id
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            UPDATE flight
+            set available_tickets = available_tickets + 1, 
+                version = version + 1
+            where flight_id = ?
+            "#,
+            flight.flight_id,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            DELETE FROM ticket
+            WHERE id = ?
+            "#,
+            flight.flight_id,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        match request.seat_number {
+            Some(s) => {
+                sqlx::query!(
+                    r#"
+                    UPDATE seat_info
+                    SET seat_status = 'AVAILABLE',
+                        version = version + 1
+                    WHERE flight_id = ? AND seat_number = ?
+                    "#,
+                    flight.flight_id,
+                    s
+                )
+                .execute(&self.pool)
+                .await?;
+            }
+            None => {}
+        }
+
+        Ok(())
+    }
+
+    async fn book_ticket_for_flight(
+        &self,
+        user_id: i32,
+        request: FlightBookingRequest,
+    ) -> AppResult<FlightBookingResponse> {
+        // get the flight information
+        // Check this flight exist
+        let flight = sqlx::query_as!(
+            Flight,
+            r#"
+            SELECT flight_id, flight_number, flight_date, available_tickets, version 
+            FROM flight 
+            WHERE flight_number = ? 
+            AND flight_date = ?
+            "#,
+            request.flight_number,
+            request.flight_date
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match flight {
+            Some(_) => {}
+            None => {
+                return Err(AppError::BadRequest(format!(
+                    "Flight {} does not exist on {}\n",
+                    request.flight_number, request.flight_date
+                )))
+            }
+        }
+
+        // do not allow re-booking the same flight for now
         let existing_ticket = sqlx::query!(
             r#"SELECT id, seat_number FROM ticket 
             WHERE customer_id = ? 
@@ -120,11 +240,11 @@ impl TicketService {
         let ticket_id = result.last_insert_id() as i32;
         // println!("inserted {}", ticket_id);
 
-        let response = TicketBookingResponse {
+        let response = FlightBookingResponse {
             ticket_id,
             flight_details: format!("Flight {} on {}", flight.flight_number, flight.flight_date),
             seat_number: None,
-            booking_status: "Confirmed.".to_string(),
+            // booking_status: "Confirmed.".to_string(),
         };
 
         // Successfully booked a ticket, now do the seat part.
@@ -146,14 +266,18 @@ impl TicketService {
                     )
                     .await;
                 match book_seat_result {
-                    Ok(_) => return Ok(TicketBookingResponse {
-                        seat_number: Some(prefered_seat),
-                        ..response
-                    }),
-                    Err(_) => return Ok(TicketBookingResponse {
-                        booking_status: "Confirmed booking, however the preferred seat is currently unavaiable, please try again later.".to_string(),
-                        ..response
-                    }),
+                    Ok(_) => {
+                        return Ok(FlightBookingResponse {
+                            seat_number: Some(prefered_seat),
+                            ..response
+                        })
+                    }
+                    Err(_) => {
+                        return Ok(FlightBookingResponse {
+                            // booking_status: "Confirmed booking, however the preferred seat is currently unavaiable, please try again later.".to_string(),
+                            ..response
+                        });
+                    }
                 }
             }
             None => return Ok(response),
@@ -219,7 +343,7 @@ impl TicketService {
 
             if update_result.rows_affected() == 0 {
                 tx.rollback().await?;
-                
+
                 // sleep a bit to prevent from deadlock
                 let millis = rand::thread_rng().gen_range(1..=50);
                 tokio::time::sleep(tokio::time::Duration::from_millis(millis)).await;
@@ -266,6 +390,31 @@ impl TicketService {
         customer_id: i32,
         request: SeatBookingRequest,
     ) -> AppResult<bool> {
+        // Check this flight exist
+        let flight = sqlx::query_as!(
+            Flight,
+            r#"
+            SELECT flight_id, flight_number, flight_date, available_tickets, version 
+            FROM flight 
+            WHERE flight_number = ? 
+            AND flight_date = ?
+            "#,
+            request.flight_number,
+            request.flight_date
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match flight {
+            Some(_) => {}
+            None => {
+                return Err(AppError::BadRequest(format!(
+                    "Flight {} does not exist on {}\n",
+                    request.flight_number, request.flight_date
+                )))
+            }
+        }
+
         let flight = sqlx::query!(
             r#"SELECT flight_id FROM flight 
             WHERE flight_number = ? AND flight_date = ?"#,

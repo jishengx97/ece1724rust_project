@@ -15,6 +15,11 @@ pub struct Ticket {
 
 #[derive(Debug, Deserialize, JsonSchema, Clone)]
 pub struct TicketBookingRequest {
+    pub flights: Vec<FlightBookingRequest>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Clone)]
+pub struct FlightBookingRequest {
     pub flight_number: i32,
     pub flight_date: NaiveDate,
     pub preferred_seat: Option<i32>,
@@ -22,10 +27,15 @@ pub struct TicketBookingRequest {
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct TicketBookingResponse {
+    pub flight_bookings: Vec<FlightBookingResponse>,
+    pub booking_status: String,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct FlightBookingResponse {
     pub ticket_id: i32,
     pub flight_details: String,
     pub seat_number: Option<i32>,
-    pub booking_status: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Clone)]

@@ -27,18 +27,134 @@ We are building a Rust-based backend for an airline ticket booking system. The a
 Rust has strong frameworks, like Rocket, for handling REST API requests. We’ll use MySQL as our database, connecting through Rust library SQLx. These tools help us build a system that meets the needs of an airline booking platform with high performance and safety standards.
 
 ## Features
+Our API system provides comprehensive endpoints for user management and flight operations. All responses are in JSON format and require appropriate error handling.
 
-### User Authentication API
-- **User Registration** (`POST api/register`)
-  - Enables new users to create accounts
-  - Supports registration with basic information including username, password, name, birth date, and gender, and role (optional,the default role is user)
-  - Implements password encryption using bcrypt to store encrypted password in database
-  - Prevents duplicate username registration
-  
-- **User Login** (`POST api/login`) 
-  - Provides user login functionality by username and password, if the username or password is incorrect, it will return an error message with status code 401
-  - Validates user credentials and compare the password with the encrypted password in database
-  - Returns JWT token upon successful login for subsequent request authentication and the JWT token will contain the user id and expiration time with 24 hours
+### User Service API
+
+The User Service handles user authentication and registration operations, providing secure access to the system.
+
+#### Register User (`POST /api/register`)
+Creates a new user account in the system.
+
+**Request Body:**
+```json
+{
+  "username": "john_doe",
+  "password": "secure_password123",
+  "name": "John Doe",
+  "birth_date": "1990-01-01",
+  "gender": "M",
+  "role": "USER"  // Optional, defaults to "USER"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "user_id": 12345,
+  "status": "success"
+}
+```
+
+**Error Handling:**
+- `400 Bad Request`: Invalid input data 
+  - Gender is not male or female
+  - Password cannot be hashed
+- `409 Conflict`: Username already exists
+- `422 Unprocessable Entity`: Missing required fields
+
+#### User Login (`POST /api/login`)
+Authenticates a user and provides a JWT token for subsequent requests.
+
+**Request Body:**
+```json
+{
+  "username": "john_doe",
+  "password": "secure_password123"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "user_id": 12345
+}
+```
+
+**Error Handling:**
+- `401 Unauthorized`: Invalid credentials (username or password is incorrect)
+- `422 Unprocessable Entity`: Missing required fields
+
+### Flight Service API
+
+The Flight Service provides functionality to search flights and check seat availability.
+
+#### Search Flights (`GET /api/flights/search`)
+Searches for available flights based on specified criteria.
+
+**Query Parameters:**
+- Required:
+  - `departure_city`: String (e.g., "New York")
+  - `destination_city`: String (e.g., "London")
+  - `departure_date`: YYYY-MM-DD (e.g., "2024-06-15")
+- Optional:
+  - `end_date`: YYYY-MM-DD (e.g., "2024-06-20")
+
+**Example Request:**
+```
+GET /api/flights/search?departure_city=New York&destination_city=London&departure_date=2024-06-15
+```
+
+**Response (200 OK):**
+```json
+{
+  "flights": [
+    {
+      "flight_id": 123,
+      "flight_number": "AA123",
+      "departure_city": "New York",
+      "destination_city": "London",
+      "departure_time": "10:00:00",
+      "arrival_time": "22:00:00",
+      "available_tickets": 50,
+      "flight_date": "2024-06-15"
+    }
+  ]
+}
+```
+
+**Error Handling:**
+- `400 Bad Request`: Invalid date format 
+  -  Date format is not YYYY-MM-DD
+- `401 Unauthorized`: Invalid or missing JWT token
+- `422 Unprocessable Entity`: Missing required fields
+
+#### Get Available Seats (`GET /api/flights/availableSeats`)
+Retrieves available seats for a specific flight.
+
+**Query Parameters:**
+- Required:
+  - `flight_number`: Integer (e.g., 123)
+  - `flight_date`: YYYY-MM-DD (e.g., "2024-06-15")
+
+**Example Request:**
+```
+GET /api/flights/availableSeats?flight_number=123&flight_date=2024-06-15
+```
+
+**Response (200 OK):**
+```json
+{
+  "available_seats": [1, 2, 3, 5, 8, 13, 21]
+}
+```
+
+**Error Handling:**
+- `400 Bad Request`: Invalid date format
+- `401 Unauthorized`: Invalid or missing JWT token
+- `404 Not Found`: Flight not found
+- `422 Unprocessable Entity`: Missing required fields
 
 ## Reproducibility Guide
 
