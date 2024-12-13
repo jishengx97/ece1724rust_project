@@ -319,7 +319,7 @@ pip install mysql-connector-python python-dotenv
 python util/create_flight_script.py
 ```
 
-### 4. Create a text file named `.env` in the project directory, and put the following lines in it (replace \<your secret password\> with the actual password):
+### 4. Create a text file named `.env` in the project directory, and put the following lines in it (replace \<your secret password\> with the actual password)
 
 ```bash
 DATABASE_URL="mysql://root:<your secret password>@localhost:3306/airline_reservation_system"
@@ -338,7 +338,7 @@ cargo run
 
 ## User's Guide
 
-### 1. To register an user, send a POST request to route api/register/:
+### 1. To register an user, send a POST request to route `api/register/`
 
 ```bash
 curl "http://localhost:8000/api/register/" \
@@ -353,7 +353,7 @@ user@system:~$ curl "http://localhost:8000/api/register/" \
 {"user_id":1,"status":"success"}
 ```
 
-### 2. To login, send a POST request to route api/login/:
+### 2. To login, send a POST request to route `api/login/`
 
 ```bash
 curl "http://localhost:8000/api/login/" \
@@ -368,7 +368,7 @@ user@system:~$ curl "http://localhost:8000/api/login/" \
 {"token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s","user_id":1}
 ```
 
-### 3. To search for flights, send a GET request to route api/flights/search. Supply the departure city, destination city, and the date of travel. Optionally, you can supply the search end date to search for all the matching flights between the departure date and end date:
+### 3. To search for flights, send a GET request to route `api/flights/search`. Supply the departure city, destination city, and the date of travel. Optionally, you can supply the search end date to search for all the matching flights between the departure date and end date
 
 ```bash
 curl \
@@ -389,7 +389,7 @@ user@system:~$ curl \
 {"flights":[{"flight_id":1,"flight_number":590,"departure_city":"JFK","destination_city":"YYZ","departure_time":"07:20:00","arrival_time":"08:50:00","available_tickets":149,"flight_date":"2024-10-24"},{"flight_id":2,"flight_number":590,"departure_city":"JFK","destination_city":"YYZ","departure_time":"07:20:00","arrival_time":"08:50:00","available_tickets":149,"flight_date":"2024-10-25"}]}
 ```
 
-### 4. To search for available seats for a flight, send a GET request to route api/flights/availableSeats. Supply the flight number and flight date of the flight:
+### 4. To search for available seats for a flight, send a GET request to route `api/flights/availableSeats`. Supply the flight number and flight date of the flight
 
 ```bash
 curl \
@@ -406,7 +406,7 @@ user@system:~$ curl \
 {"available_seats":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146]}
 ```
 
-### 5. To book tickets for flights, send a POST requests to route api/tickets/book. One or more flights can be booked with a single request, and the prefered seats can be optionally specified:
+### 5. To book tickets for flights, send a POST requests to route `api/tickets/book`. One or more flights can be booked with a single request, and the prefered seats can be optionally specified
 
 ```bash
 curl \
@@ -435,7 +435,7 @@ user@system:~$ curl \
 {"booking_status":"Confirmed","flight_bookings":[{"flight_details":"Flight 590 on 2024-10-26","seat_number":17,"ticket_id":3},{"flight_details":"Flight 1284 on 2024-10-26","seat_number":24,"ticket_id":4}]}
 ```
 
-### 6. To select or update the seat for confirmed flights, send a POST request to route api/tickets/seat/book:
+### 6. To select or update the seat for confirmed flights, send a POST request to route `api/tickets/seat/book`
 
 ```bash
 curl \
@@ -454,7 +454,7 @@ user@system:~$ curl \
 {"success":true}
 ```
 
-### 7. To query the flight booking histories, send a GET request to route api/history:
+### 7. To query the flight booking histories, send a GET request to route `api/history`
 
 ```bash
 curl \
