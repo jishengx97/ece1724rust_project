@@ -1,7 +1,8 @@
 # ECE1724 Final Report: Backend for Airline Booking Systems
 
-Guanhong Wu 1002377475  guanhong.wu@mail.utoronto.ca   
-Shengxiang Ji 1002451232
+Guanhong Wu 1002377475  guanhong.wu@mail.utoronto.ca
+
+Shengxiang Ji 1002451232 shengxiang.ji@mail.utoronto.ca
 
 ## Motivation
 
@@ -39,11 +40,12 @@ Rust has strong frameworks, like Rocket, for handling REST API requests. We’ll
   - Validates user credentials and compare the password with the encrypted password in database
   - Returns JWT token upon successful login for subsequent request authentication and the JWT token will contain the user id and expiration time with 24 hours
 
-## Reproducibility
+## Reproducibility Guide
 
 ### 1. Install and configure the `MySQL` database
 
 #### Ubuntu Installation
+
 ```bash
 sudo apt update
 sudo apt install mysql-server
@@ -51,17 +53,19 @@ sudo systemctl start mysql.service
 ```
 
 #### macOS Installation
+
 ```zsh
 brew install mysql
 brew services start mysql
 ```
 
 #### Configure the database after installation
+
 ```bash
-# login as root user
+# Login as root user
 sudo mysql -u root
-# enter system root password as required
-# update the root user password (replace <some secret password> with the actual password)
+# Enter system root password as required
+# Update the root user password (replace <some secret password> with the actual password)
 mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password  by '<some secret password>;
 mysql> FLUSH PRIVILEGES;
 mysql> quit
@@ -70,16 +74,30 @@ mysql -u root -p
 ```
 
 ### 2. Setup the database
+
 ```bash
+# Replace <some secret password> with the actual password
 mysql -u root -p"<your secret password>" < util/create_database.sql
 ```
 
 ### 3. Insert some testing data into the database
+
 ```bash
-# install necessary python packages
+# Install necessary python packages
 pip install mysql-connector-python python-dotenv
 python util/create_flight_script.py
 ```
+
+### 4. Compile and run the rust project
+
+```bash
+cargo build
+cargo run
+```
+
+## User's Guide
+
+### 1. To register an user, send a POST request to route api/register:
 
 ```bash
 curl -H 'Accept: application/json' -H "Authorization: Bearer ${TOKEN}" https://{hostname}/api/myresource
