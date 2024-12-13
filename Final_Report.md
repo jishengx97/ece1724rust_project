@@ -97,7 +97,33 @@ cargo run
 
 ## User's Guide
 
-### 1. To register an user, send a POST request to route api/register:
+### 1. To register an user, send a POST request to route api/register/, replacing the fields in angle brackets with real values:
+
+```bash
+curl "http://localhost:8000/api/register/" \
+  --json '{"username": "<your username>", "password": "<your password>", "name": "<your name>", "birth_date": "<your birthdate>", "gender": "[male|female]"}'
+```
+
+On success, it will return the registration status and the user_id:
+```console
+user@system:~$ curl "http://localhost:8000/api/register/" \
+  --json '{"username": "user1", "password": "000000", "name": "Jane Doe", "birth_date": "2000-01-01", "gender": "male"}'
+{"user_id":1,"status":"success"}
+```
+
+### 2. To login, send a POST request to route api/login/, replacing the fields in angle brackets with real values:
+
+```bash
+curl "http://localhost:8000/api/login/" \
+  --json '{"username": "user1", "password": "000000"}'
+```
+
+On success, it will return the user_id of the user that is loggin in, as well as a JWT token for authorizing future requests, valid for 24 hours:
+```console
+user@system:~$ curl "http://localhost:8000/api/login/" \
+  --json '{"username": "user1", "password": "000000"}'
+{"token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NTQ1OH0.BysiTTXpzrt5vBw4WtZvVuq1EfwagwRQhGRKc94fFkY","user_id":1}
+```
 
 ```bash
 curl -H 'Accept: application/json' -H "Authorization: Bearer ${TOKEN}" https://{hostname}/api/myresource
