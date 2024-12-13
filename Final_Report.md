@@ -178,7 +178,8 @@ This API is implemented with optimistic locking to ensure data consistency when 
       "flight_number": 456,
       "flight_date": "2024-06-16",
       "preferred_seat": null // Optional
-    }
+    },
+    ...
   ]
 }
 ```
