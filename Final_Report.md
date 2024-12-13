@@ -64,7 +64,7 @@ Creates a new user account in the system.
 - `422 Unprocessable Entity`: Missing required fields
 
 #### User Login (`POST /api/login`)
-Authenticates a user and provides a JWT token for subsequent requests.
+Authenticates a user and provides a JWT token for subsequent requests. The token is valid for 24 hours and records the user_id of the user that is logging in for future API requests.
 
 **Request Body:**
 ```json
@@ -155,6 +155,120 @@ GET /api/flights/availableSeats?flight_number=123&flight_date=2024-06-15
 - `401 Unauthorized`: Invalid or missing JWT token
 - `404 Not Found`: Flight not found
 - `422 Unprocessable Entity`: Missing required fields
+
+### Ticket Service API
+
+The Ticket Service handles flight ticket booking operations and booking history queries. It supports ticket booking with seat selection and viewing booking history.
+
+#### Book Ticket (`POST /api/tickets/book`)
+Books tickets for one or multiple flights in one request. User also can choose to book a preferred seat for each flight. If the seat is already booked or unavailable, the ticket still can be booked without the preferred seat.
+If user tries to book a ticket with multiple flights and some of the flights are not available or the user already has a ticket for some of the flights, all tickets will not be booked.
+This API is implemented with optimistic locking to ensure data consistency when multiple users try to book the same ticket and/or seat at the same time. The optimistic locking will retry the booking processs three times before returning an error.
+
+**Request Body Example:**
+```json
+{
+  "flights": [
+    {
+      "flight_number": 123,
+      "flight_date": "2024-06-15",
+      "preferred_seat": 12  // Optional
+    },
+    {
+      "flight_number": 456,
+      "flight_date": "2024-06-16",
+      "preferred_seat": null // Optional
+    }
+  ]
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "booking_status": "Confirmed",
+  "flight_bookings": [
+    {
+      "ticket_id": 789,
+      "flight_details": "Flight 123 on 2024-06-15",
+      "seat_number": 12
+    },
+    {
+      "ticket_id": 790,
+      "flight_details": "Flight 456 on 2024-06-16",
+      "seat_number": null
+    }
+  ]
+}
+```
+
+**Error Handling:**
+- `400 Bad Request`: 
+  - Flight(s) does not exist
+  - Flight(s) already booked by current user
+  - Flight(s) is fully booked
+- `401 Unauthorized`: Invalid or missing JWT token
+- `422 Unprocessable Entity`: Missing required fields
+
+#### Book/Change Seat (`POST /api/tickets/seat/book`)
+Books or changes a seat for an existing ticket. 
+This API will handle the request to help user book a seat for a flight and release the old seat if the user already holds a seat for the flight.
+This API is implemented with optimistic locking to ensure data consistency when multiple users try to book the same seat at the same time.
+
+**Request Body:**
+```json
+{
+  "flight_number": 123,
+  "flight_date": "2024-06-15",
+  "seat_number": 15
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true
+}
+```
+
+**Error Handling:**
+- `400 Bad Request`: 
+  - Seat already booked
+  - No ticket of this flight for current user
+  - Seat is not available
+- `401 Unauthorized`: Invalid or missing JWT token
+- `404 Not Found`: 
+  - Flight not found
+  - Seat not found
+- `422 Unprocessable Entity`: Missing required fields
+  
+#### Get Booking History (`GET /api/history`)
+Retrieves the booking history that includes all tickets for the authenticated user.
+
+**Response (200 OK):**
+```json
+{
+  "flights": [
+    {
+      "flight_number": 123,
+      "seat_number": "15",
+      "departure_city": "New York",
+      "destination_city": "London",
+      "flight_date": "2024-06-15",
+      "departure_time": "10:00:00",
+      "arrival_time": "22:00:00"
+    },
+    ...
+  ]
+}
+```
+
+**Error Handling:**
+- `401 Unauthorized`: Invalid or missing JWT token
+
+### Utils 
+
+//TODO: Add Python script INTO and SQL file
 
 ## Reproducibility Guide
 
