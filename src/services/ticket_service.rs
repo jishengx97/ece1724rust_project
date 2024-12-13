@@ -310,7 +310,7 @@ impl TicketService {
             let new_seat_info = match new_seat_info {
                 Some(info) => info,
                 None => {
-                    return Err(AppError::ValidationError(
+                    return Err(AppError::NotFound(
                         "The new seat is not found".to_string(),
                     ))
                 }
@@ -408,7 +408,7 @@ impl TicketService {
         match flight {
             Some(_) => {}
             None => {
-                return Err(AppError::BadRequest(format!(
+                return Err(AppError::NotFound(format!(
                     "Flight {} does not exist on {}\n",
                     request.flight_number, request.flight_date
                 )))
