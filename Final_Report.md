@@ -192,7 +192,7 @@ mysql -u root -p
 ### 2. Setup the database
 
 ```bash
-# Replace <some secret password> with the actual password
+# Replace <your secret password> with the actual password
 mysql -u root -p"<your secret password>" < util/create_database.sql
 ```
 
@@ -204,7 +204,17 @@ pip install mysql-connector-python python-dotenv
 python util/create_flight_script.py
 ```
 
-### 4. Compile and run the rust project
+### 4. Create a text file named `.env` in the project directory, and put the following lines in it (replace \<your secret password\> with the actual password):
+
+```bash
+DATABASE_URL="mysql://root:<your secret password>@localhost:3306/airline_reservation_system"
+ADMIN_DATABASE_URL="mysql://root:<your secret password>@localhost:3306/mysql"
+JWT_SECRET=your_secret_key_here
+ROCKET_ADDRESS=127.0.0.1
+ROCKET_PORT=8000
+```
+
+### 5. Compile and run the rust project
 
 ```bash
 cargo build
@@ -217,7 +227,7 @@ cargo run
 
 ```bash
 curl "http://localhost:8000/api/register/" \
-  --json '{"username": "<your username>", "password": "<your password>", "name": "<your name>", "birth_date": "<your birthdate>", "gender": "[male|female]"}'
+  --json '{"username": "<your username>", "password": "<your password>", "name": "<your name>", "birth_date": "<YYYY-MM-DD>", "gender": "[male|female]"}'
 ```
 
 On success, it will return the registration status and the user_id:
@@ -248,8 +258,10 @@ user@system:~$ curl "http://localhost:8000/api/login/" \
 ```bash
 curl \
   --header "Authorization: Bearer <your JWT token>" \
-  "http://localhost:8000/api/flights/search?departure_city=<departure city>&destination_city=<destination city>&departure_date=<departure date>[&end_date=<end date>]"
+  "http://localhost:8000/api/flights/search?departure_city=<departure city>&destination_city=<destination city>&departure_date=<YYYY-MM-DD>[&end_date=<YYYY-MM-DD>]"
 ```
+
+On success, the response will contain a list of flights that matches the search criteria.
 
 ```console
 user@system:~$ curl \
@@ -267,8 +279,10 @@ user@system:~$ curl \
 ```bash
 curl \
   --header "Authorization: Bearer <your JWT token>" \
-  "http://localhost:8000/api/flights/availableSeats?flight_number=<flight number>>&flight_date=<flightdate>"
+  "http://localhost:8000/api/flights/availableSeats?flight_number=<flight number>>&flight_date=<YYYY-MM-DD>"
 ```
+
+On success, the response will list all the remaining available seats on the flight.
 
 ```console
 user@system:~$ curl \
@@ -277,12 +291,79 @@ user@system:~$ curl \
 {"available_seats":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146]}
 ```
 
-### 5. To book tickets for flights, send a POST requests to route api/rickets/book.
+### 5. To book tickets for flights, send a POST requests to route api/tickets/book. One or more flights can be booked with a single request, and the prefered seats can be optionally specified:
 
 ```bash
 curl \
-  --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s" \
-  --json '{"flights": [{ "flight_number": 590, "flight_date": "2024-10-24"}]}' \
+  --header "Authorization: Bearer <your JWT token>" \
+  --json '{"flights": [{ "flight_number": <flight number 1>, "flight_date": "<YYYY-MM-DD>"[, "preferred_seat": <preferred seat 1>]}, { "flight_number": <flight number 2>, "flight_date": "<YYYY-MM-DD>"[, "preferred_seat": <preferred seat 2>]}]}' \
   "http://localhost:8000/api/tickets/book"
 ```
 
+On success, the response will contain whether the booking is successfully confirmed. It will also contain the details of the booked flight, as well as the confirmed seat numbers on those flights.
+
+```console
+user@system:~$ curl \
+  --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s" \
+  --json '{"flights": [{ "flight_number": 590, "flight_date": "2024-10-24"}]}' \
+  "http://localhost:8000/api/tickets/book"
+{"booking_status":"Confirmed","flight_bookings":[{"flight_details":"Flight 590 on 2024-10-24","seat_number":null,"ticket_id":1}]}
+user@system:~$ curl \
+  --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s" \
+  --json '{"flights": [{ "flight_number": 590, "flight_date": "2024-10-25", "preferred_seat": 1}]}' \
+  "http://localhost:8000/api/tickets/book"
+{"booking_status":"Confirmed","flight_bookings":[{"flight_details":"Flight 590 on 2024-10-25","seat_number":1,"ticket_id":2}]}
+user@system:~$ curl \
+  --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s" \
+  --json '{"flights": [{ "flight_number": 590, "flight_date": "2024-10-26", "prefered_seat": 17}, { "flight_number": 1284, "flight_date": "2024-10-26", "prefered_seat": 24}]}' \
+  "http://localhost:8000/api/tickets/book"
+{"booking_status":"Confirmed","flight_bookings":[{"flight_details":"Flight 590 on 2024-10-26","seat_number":17,"ticket_id":3},{"flight_details":"Flight 1284 on 2024-10-26","seat_number":24,"ticket_id":4}]}
+```
+
+### 6. To select or update the seat for confirmed flights, send a POST request to route api/tickets/seat/book:
+
+```bash
+curl \
+  --header "Authorization: Bearer <your JWT token>" \
+  --json '{"flight_number": <flight number>, "flight_date": "<YYYY-MM-DD>", "seat_number": <seat number>}' \
+  "http://localhost:8000/api/tickets/seat/book"
+```
+
+On success, the reponse will indicate the seat selection succeeded.
+
+```console
+user@system:~$ curl \
+  --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s" \
+  --json '{"flight_number": 590, "flight_date": "2024-10-24", "seat_number": 24}' \
+  "http://localhost:8000/api/tickets/seat/book"
+{"success":true}
+```
+
+### 7. To query the flight booking histories, send a GET request to route api/history:
+
+```bash
+curl \
+  --header "Authorization: Bearer <your JWT token>" \
+  "http://localhost:8000/api/history"
+```
+
+On success, the reponse will contain a list of confirmed flight tickets the user has booked.
+
+```console
+user@system:~$ curl \
+  --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s" \
+  "http://localhost:8000/api/history"
+{"flights":[{"flight_number":590,"seat_number":"17","departure_city":"JFK","destination_city":"YYZ","flight_date":"2024-10-26","departure_time":"07:20:00","arrival_time":"08:50:00"},{"flight_number":1284,"seat_number":"24","departure_city":"LAX","destination_city":"JFK","flight_date":"2024-10-26","departure_time":"23:55:00","arrival_time":"07:00:00"},{"flight_number":590,"seat_number":"1","departure_city":"JFK","destination_city":"YYZ","flight_date":"2024-10-25","departure_time":"07:20:00","arrival_time":"08:50:00"},{"flight_number":590,"seat_number":"24","departure_city":"JFK","destination_city":"YYZ","flight_date":"2024-10-24","departure_time":"07:20:00","arrival_time":"08:50:00"}]}
+```
+
+## Developer's Guide
+
+### Testing
+
+The project uses the cargo unit test infrastructure to ensure the functionality and performance of the package. To run the tests, simply run:
+
+```bash
+cargo test
+```
+
+In the `tests/` folder, there are tests for different services of the package. The `user_service_test.rs` contains tests that ensures the user authencation functionalities are working correctly, including user registration, user login and password correctness checks. The `flight_service_test.rs` contains tests that ensures flight data can successfully be queried, including flights for multiple dates and available seats for flights. The `ticket_service_test.rs` contains tests for ticket booking and seat selections, and ensures flights and seats are not double-booked even in concurrent request environments. The `throughput_test.rs` generates a large nuber of random requests to the system, to ensure the system is able to maintain a high throughput even when the requests are highly concurrent.
