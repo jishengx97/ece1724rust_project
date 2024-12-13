@@ -1,7 +1,8 @@
 # ECE1724 Final Report: Backend for Airline Booking Systems
 
-Guanhong Wu 1002377475  guanhong.wu@mail.utoronto.ca   
-Shengxiang Ji 1002451232
+Guanhong Wu 1002377475  guanhong.wu@mail.utoronto.ca
+
+Shengxiang Ji 1002451232 shengxiang.ji@mail.utoronto.ca
 
 ## Motivation
 
@@ -155,11 +156,12 @@ GET /api/flights/availableSeats?flight_number=123&flight_date=2024-06-15
 - `404 Not Found`: Flight not found
 - `422 Unprocessable Entity`: Missing required fields
 
-## Reproducibility
+## Reproducibility Guide
 
 ### 1. Install and configure the `MySQL` database
 
 #### Ubuntu Installation
+
 ```bash
 sudo apt update
 sudo apt install mysql-server
@@ -167,17 +169,19 @@ sudo systemctl start mysql.service
 ```
 
 #### macOS Installation
+
 ```zsh
 brew install mysql
 brew services start mysql
 ```
 
 #### Configure the database after installation
+
 ```bash
-# login as root user
+# Login as root user
 sudo mysql -u root
-# enter system root password as required
-# update the root user password (replace <some secret password> with the actual password)
+# Enter system root password as required
+# Update the root user password (replace <some secret password> with the actual password)
 mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password  by '<some secret password>;
 mysql> FLUSH PRIVILEGES;
 mysql> quit
@@ -186,15 +190,55 @@ mysql -u root -p
 ```
 
 ### 2. Setup the database
+
 ```bash
+# Replace <some secret password> with the actual password
 mysql -u root -p"<your secret password>" < util/create_database.sql
 ```
 
 ### 3. Insert some testing data into the database
+
 ```bash
-# install necessary python packages
+# Install necessary python packages
 pip install mysql-connector-python python-dotenv
 python util/create_flight_script.py
+```
+
+### 4. Compile and run the rust project
+
+```bash
+cargo build
+cargo run
+```
+
+## User's Guide
+
+### 1. To register an user, send a POST request to route api/register/, replacing the fields in angle brackets with real values:
+
+```bash
+curl "http://localhost:8000/api/register/" \
+  --json '{"username": "<your username>", "password": "<your password>", "name": "<your name>", "birth_date": "<your birthdate>", "gender": "[male|female]"}'
+```
+
+On success, it will return the registration status and the user_id:
+```console
+user@system:~$ curl "http://localhost:8000/api/register/" \
+  --json '{"username": "user1", "password": "000000", "name": "Jane Doe", "birth_date": "2000-01-01", "gender": "male"}'
+{"user_id":1,"status":"success"}
+```
+
+### 2. To login, send a POST request to route api/login/, replacing the fields in angle brackets with real values:
+
+```bash
+curl "http://localhost:8000/api/login/" \
+  --json '{"username": "user1", "password": "000000"}'
+```
+
+On success, it will return the user_id of the user that is loggin in, as well as a JWT token for authorizing future requests, valid for 24 hours:
+```console
+user@system:~$ curl "http://localhost:8000/api/login/" \
+  --json '{"username": "user1", "password": "000000"}'
+{"token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NTQ1OH0.BysiTTXpzrt5vBw4WtZvVuq1EfwagwRQhGRKc94fFkY","user_id":1}
 ```
 
 ```bash
