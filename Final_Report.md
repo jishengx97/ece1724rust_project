@@ -1,8 +1,8 @@
 # ECE1724 Final Report: Backend for Airline Booking Systems
 
-Guanhong Wu 1002377475  guanhong.wu@mail.utoronto.ca
+Guanhong Wu 1002377475 <guanhong.wu@mail.utoronto.ca>
 
-Shengxiang Ji 1002451232 shengxiang.ji@mail.utoronto.ca
+Shengxiang Ji 1002451232 <shengxiang.ji@mail.utoronto.ca>
 
 ## Motivation
 
@@ -97,7 +97,7 @@ cargo run
 
 ## User's Guide
 
-### 1. To register an user, send a POST request to route api/register/, replacing the fields in angle brackets with real values:
+### 1. To register an user, send a POST request to route api/register/:
 
 ```bash
 curl "http://localhost:8000/api/register/" \
@@ -105,26 +105,68 @@ curl "http://localhost:8000/api/register/" \
 ```
 
 On success, it will return the registration status and the user_id:
+
 ```console
 user@system:~$ curl "http://localhost:8000/api/register/" \
   --json '{"username": "user1", "password": "000000", "name": "Jane Doe", "birth_date": "2000-01-01", "gender": "male"}'
 {"user_id":1,"status":"success"}
 ```
 
-### 2. To login, send a POST request to route api/login/, replacing the fields in angle brackets with real values:
+### 2. To login, send a POST request to route api/login/:
 
 ```bash
 curl "http://localhost:8000/api/login/" \
-  --json '{"username": "user1", "password": "000000"}'
+  --json '{"username": "<your username>", "password": "<your password>"}'
 ```
 
-On success, it will return the user_id of the user that is loggin in, as well as a JWT token for authorizing future requests, valid for 24 hours:
+On success, it will return the user_id of the user that is loggin in, as well as a JWT token for authorizing future requests, valid for 24 hours. Take a note of the token.
+
 ```console
 user@system:~$ curl "http://localhost:8000/api/login/" \
   --json '{"username": "user1", "password": "000000"}'
-{"token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NTQ1OH0.BysiTTXpzrt5vBw4WtZvVuq1EfwagwRQhGRKc94fFkY","user_id":1}
+{"token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s","user_id":1}
 ```
 
+### 3. To search for flights, send a GET request to route api/flights/search. Supply the departure city, destination city, and the date of travel. Optionally, you can supply the search end date to search for all the matching flights between the departure date and end date:
+
 ```bash
-curl -H 'Accept: application/json' -H "Authorization: Bearer ${TOKEN}" https://{hostname}/api/myresource
+curl \
+  --header "Authorization: Bearer <your JWT token>" \
+  "http://localhost:8000/api/flights/search?departure_city=<departure city>&destination_city=<destination city>&departure_date=<departure date>[&end_date=<end date>]"
 ```
+
+```console
+user@system:~$ curl \
+  --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s" \
+  "http://localhost:8000/api/flights/search?departure_city=JFK&destination_city=YYZ&departure_date=2024-10-24"
+{"flights":[{"flight_id":1,"flight_number":590,"departure_city":"JFK","destination_city":"YYZ","departure_time":"07:20:00","arrival_time":"08:50:00","available_tickets":149,"flight_date":"2024-10-24"}]}
+user@system:~$ curl \
+  --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s" \
+  "http://localhost:8000/api/flights/search?departure_city=JFK&destination_city=YYZ&departure_date=2024-10-24&end_date=2024-10-25"
+{"flights":[{"flight_id":1,"flight_number":590,"departure_city":"JFK","destination_city":"YYZ","departure_time":"07:20:00","arrival_time":"08:50:00","available_tickets":149,"flight_date":"2024-10-24"},{"flight_id":2,"flight_number":590,"departure_city":"JFK","destination_city":"YYZ","departure_time":"07:20:00","arrival_time":"08:50:00","available_tickets":149,"flight_date":"2024-10-25"}]}
+```
+
+### 4. To search for available seats for a flight, send a GET request to route api/flights/availableSeats. Supply the flight number and flight date of the flight:
+
+```bash
+curl \
+  --header "Authorization: Bearer <your JWT token>" \
+  "http://localhost:8000/api/flights/availableSeats?flight_number=<flight number>>&flight_date=<flightdate>"
+```
+
+```console
+user@system:~$ curl \
+  --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s" \
+  "http://localhost:8000/api/flights/availableSeats?flight_number=590&flight_date=2024-10-24"
+{"available_seats":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146]}
+```
+
+### 5. To book tickets for flights, send a POST requests to route api/rickets/book.
+
+```bash
+curl \
+  --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s" \
+  --json '{"flights": [{ "flight_number": 590, "flight_date": "2024-10-24"}]}' \
+  "http://localhost:8000/api/tickets/book"
+```
+
