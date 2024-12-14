@@ -99,20 +99,6 @@ impl PerformanceMetrics {
     fn print_summary(&self, test_name: &str) {
         test_println!(test_name, "Performance Summary:");
         test_println!(test_name, "Total Requests: {}", self.total_requests);
-        // test_println!(
-        //     test_name,
-        //     "Successful Requests: {}",
-        //     self.successful_requests
-        // );
-        // test_println!(test_name, "Failed Requests: {}", self.failed_requests);
-        // test_println!(
-        //     test_name,
-        //     "Success Rate: {:.2}%",
-        //     (self.successful_requests as f64 / self.total_requests as f64) * 100.0
-        // );
-        test_println!(test_name, "Min Latency: {:?}", self.min_latency);
-        test_println!(test_name, "Max Latency: {:?}", self.max_latency);
-        test_println!(test_name, "Avg Latency: {:?}", self.avg_latency);
         test_println!(test_name, "Total Duration: {:?}", self.total_duration);
         test_println!(
             test_name,
@@ -281,7 +267,7 @@ async fn setup_test_data(ctx: &ThroughputContext) -> Result<(), AppError> {
 #[test_context(ThroughputContext)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), AppError> {
-    let test_name = "test_concurrent_seat_booking5";
+    let test_name = "test_massive_concurrent_booking";
     let num_users = 200;
     let requests_per_user = 20;
 
@@ -291,7 +277,7 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
     // Create users concurrently
     test_println!(test_name, "Creating {} users concurrently...", num_users);
     // Create users in batches
-    const USER_BATCH_SIZE: usize = 100;
+    const USER_BATCH_SIZE: usize = 20;
     let mut user_ids = Vec::with_capacity(num_users);
 
     for chunk in (0..num_users).collect::<Vec<_>>().chunks(USER_BATCH_SIZE) {
@@ -317,7 +303,7 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
             match result {
                 Ok(Ok(user_id)) => {
                     user_ids.push(user_id);
-                    if user_ids.len() % 100 == 0 {
+                    if user_ids.len() % 20 == 0 {
                         test_println!(test_name, "Created {} users so far...", user_ids.len());
                     }
                 }
