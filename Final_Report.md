@@ -163,7 +163,7 @@ The Ticket Service handles flight ticket booking operations and booking history 
 #### Book Ticket (`POST /api/tickets/book`)
 Books tickets for one or multiple flights in one request. User also can choose to book a preferred seat for each flight. If the seat is already booked or unavailable, the ticket still can be booked without the preferred seat.
 If user tries to book a ticket with multiple flights and some of the flights are not available or the user already has a ticket for some of the flights, all tickets will not be booked.
-This API is implemented with optimistic locking to ensure data consistency when multiple users try to book the same ticket and/or seat at the same time. The optimistic locking will retry the booking processs three times before returning an error.
+This API is implemented with optimistic locking to ensure data consistency when multiple users try to book the same ticket and/or seat at the same time. The optimistic locking will retry the booking processs until the booking is successful or the booking is failed due to out of stock.
 
 **Request Body Example:**
 ```json
@@ -498,3 +498,38 @@ cargo test
 ```
 
 In the `tests/` folder, there are tests for different services of the package. The `user_service_test.rs` contains tests that ensures the user authencation functionalities are working correctly, including user registration, user login and password correctness checks. The `flight_service_test.rs` contains tests that ensures flight data can successfully be queried, including flights for multiple dates and available seats for flights. The `ticket_service_test.rs` contains tests for ticket booking and seat selections, and ensures flights and seats are not double-booked even in concurrent request environments. The `throughput_test.rs` generates a large nuber of random requests to the system, to ensure the system is able to maintain a high throughput even when the requests are highly concurrent.
+
+## Contributions
+
+### Guanhong Wu
+- Set up project framework with Rocket, SQLx, and Swagger (rocket_okapi)
+- Designed and implemented MySQL database schema
+- Implemented user registration and login functionality
+- Developed seat booking system with optimistic locking to handle concurrent seat selections
+- Created flight search and seat availability APIs
+- Established testing framework with isolated database setup/teardown for each test class
+- Wrote test cases for user authentication, flight search, seat availability, and ticket retrieval
+
+### Shengxiang Ji
+- Created Python scripts for testing and demonstration data generation
+- Implemented ticket booking system with support for multiple flights in one request and optimistic locking
+- Developed concurrent booking tests to verify system behavior under multiple user scenarios
+- Created throughput tests to evaluate web server performance
+- Wrote comprehensive Reproducibility Guide for environment setup and server deployment
+- Prepared demonstration video
+
+### Lessons Learned and Concluding Remarks
+
+### Project Management and Documentation
+- Proper project management methodologies should have been implemented from the project's inception
+- Comprehensive API documentation should be established before development begins
+- Well-defined API specifications would reduce requirement changes during development
+- Early documentation is particularly crucial when considering future frontend integration
+- The absence of initial API documentation resulted in multiple iterations of interface redesigns
+
+### Testing Infrastructure
+- A robust testing framework should be established immediately after the initial server architecture
+- Test-driven development practices should be adopted to ensure feature reliability
+- Concurrent implementation of features and their corresponding test cases helps identify potential issues early
+- Comprehensive test coverage provides confidence in maintaining and modifying existing functionalities
+- Investment in testing infrastructure yields significant returns in long-term development efficiency
