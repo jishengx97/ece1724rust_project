@@ -269,7 +269,23 @@ Retrieves the booking history that includes all tickets for the authenticated us
 
 ### Utils 
 
-//TODO: Add Python script INTO and SQL file
+#### Swagger Integration
+We integrated Swagger UI to help developers explore and test the APIs. The Swagger UI provides an interactive interface to view all API endpoints and schemas at http://localhost:8000/swagger/index.html. Due to current limitations in Rust's OpenAPI implementation, JWT token authentication cannot be included in requests' header through Swagger. Therefore, only the register and login endpoints can be fully tested via Swagger UI. However, it remains a valuable tool for API documentation and exploration.
+
+![Swagger UI API Screenshot](images/swagger_api.png)
+![Swagger UI Schemas Screenshot](images/swagger_schemas.png)
+
+#### Database Initialization Script
+The `create_database.sql` script helps initialize the MySQL database with the required schema. It creates the following key tables:
+- `aircraft`: Stores aircraft information with default entries for models 737, 777, 320, 900, and 200
+- `user` and `customer_info`: Manages user authentication and customer details
+- `flight_route`: Contains flight route information including cities and schedules
+- `flight`: Tracks individual flights and available tickets
+- `seat_info`: Manages seat availability status
+- `ticket`: Records ticket bookings and seat assignments
+
+#### Flight Data Generation Script
+Since we haven't implemented administrative APIs for adding flights, we created a Python script (`create_flight_script.py`) to populate the database with sample flight data. This script adds default flight routes and generates corresponding flights for testing and demonstration purposes. It creates two flight routes between major cities like JFK-YYZ and LAX-JFK with realistic schedules and seat configurations.
 
 ## Reproducibility Guide
 
