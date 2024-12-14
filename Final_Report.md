@@ -4,6 +4,20 @@ Guanhong Wu 1002377475 <guanhong.wu@mail.utoronto.ca>
 
 Shengxiang Ji 1002451232 <shengxiang.ji@mail.utoronto.ca>
 
+# Table of Contents
+- [Motivation](#motivation)
+- [Objective](#objective)
+- [Features](#features)
+  - [User Service API](#user-service-api)
+  - [Flight Service API](#flight-service-api)
+  - [Ticket Service API](#ticket-service-api)
+  - [Utils](#utils)
+- [Reproducibility Guide](#reproducibility-guide)
+- [User's Guide](#users-guide)
+- [Developer's Guide](#developers-guide)
+- [Contributions](#contributions)
+- [Lessons Learned](#lessons-learned)
+
 ## Motivation
 
 According to the United States Department of Transportation, over 900 million air travelers were transported by US airlines in 2023 alone [1]. Therefore a high-performance and secure airline booking system is essential. We are driven to implement a web server backend for an airline booking system that provides REST API services in Rust because we believe that the particular advantages of Rust as a language lend themselves well to this application space. Web servers these days are usually built on Spring Boot for Java or .NET/ASP .NET Core frameworks. Those are all great tools, but Rust provides some advantages that help to solve problems inherent to airline booking systems.
@@ -518,18 +532,12 @@ In the `tests/` folder, there are tests for different services of the package. T
 - Wrote comprehensive Reproducibility Guide for environment setup and server deployment
 - Prepared demonstration video
 
-### Lessons Learned and Concluding Remarks
+## Lessons Learned
 
-### Project Management and Documentation
-- Proper project management methodologies should have been implemented from the project's inception
-- Comprehensive API documentation should be established before development begins
-- Well-defined API specifications would reduce requirement changes during development
-- Early documentation is particularly crucial when considering future frontend integration
-- The absence of initial API documentation resulted in multiple iterations of interface redesigns
+### Project Management
+- Early API documentation could have prevented multiple redesigns of request/response structures. For example, our ticket booking API was modified three times to accommodate new requirements, such as adding preferred seat selection and multiple flight bookings in one request. 
+- Pre-defined API specifications would have helped us identify these needs earlier. This would be particularly beneficial if frontend development were to be implemented, as it would ensure smooth integration between frontend and backend components.
 
-### Testing Infrastructure
-- A robust testing framework should be established immediately after the initial server architecture
-- Test-driven development practices should be adopted to ensure feature reliability
-- Concurrent implementation of features and their corresponding test cases helps identify potential issues early
-- Comprehensive test coverage provides confidence in maintaining and modifying existing functionalities
-- Investment in testing infrastructure yields significant returns in long-term development efficiency
+### Testing Strategy
+- Building tests alongside features helped catch critical issues early, particularly in concurrent booking scenarios. For instance, our concurrent booking tests revealed a race condition in seat selection that could have led to double bookings in production. This was identified and fixed during development rather than after deployment.
+- Additionally, having comprehensive tests from the beginning would have eliminated the need for manual testing during minor code modifications, significantly improving development efficiency.
