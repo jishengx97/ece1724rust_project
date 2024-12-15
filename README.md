@@ -546,7 +546,17 @@ The project uses the cargo unit test infrastructure to ensure the functionality 
 cargo test
 ```
 
-In the `tests/` folder, there are tests for different services of the package.
+You will see console output similar to:
+
+![Cargo Test output](media/cargo_test_output.png)
+
+Or to enable debug output and progress reporting, run:
+
+```bash
+cargo test -- --nocapture
+```
+
+In the `tests/` folder, there are tests for different services of the package. Each test class owns their own copies of the database, and test data is inserted separately for each test. This ensures the results of the tests are independent of each other, and eliminates risks of data pollution between tests.
 
 - The `user_service_test.rs` contains tests that ensures the user authencation functionalities are working correctly. It includes tests that ensure user registration requests can be correctly processed, tests that ensure requests with duplicated usernames can be correctly rejected, tests that ensure users can login with the correct password and vice versa, and tests that ensure non-existent users cannot login.
 - The `flight_service_test.rs` contains tests that ensures flight data can successfully be queried. It includes tests that ensures flights can be correctly searched given either a single date or a date range, tests that ensures available seat status can correctly be queried whether or not flight is partially booked, and tests that ensure non-existent flight query returns an error.
