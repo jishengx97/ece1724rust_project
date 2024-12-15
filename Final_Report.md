@@ -318,8 +318,8 @@ Retrieves the booking history that includes all tickets for the authenticated us
 
 We integrated Swagger UI to help developers explore and test the APIs. The Swagger UI provides an interactive interface to view all API endpoints and schemas at <http://localhost:8000/swagger/index.html. Due to current limitations in Rust's OpenAPI implementation, JWT token authentication cannot be included in requests' header through Swagger. Therefore, only the register and login endpoints can be fully tested via Swagger UI. However, it remains a valuable tool for API documentation and exploration.
 
-![Swagger UI API Screenshot](images/swagger_api.png)
-![Swagger UI Schemas Screenshot](images/swagger_schemas.png)
+![Swagger UI API Screenshot](media/swagger_api.png)
+![Swagger UI Schemas Screenshot](media/swagger_schemas.png)
 
 #### Database Initialization Script
 
