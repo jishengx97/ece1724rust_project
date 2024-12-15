@@ -36,9 +36,9 @@ We aim to provide a demo for optimistic locking in database interactions using t
 
 ## Objective
 
-We are building a Rust-based backend for an airline ticket booking system. The aim is to create a powerful and efficient REST API that allows users to do various booking activities like searching flights, booking seats, and making reservations. By using Rust's features, along with the Rocket framework for web development and SQLx for database interactions, we plan to fill gaps in Rust’s ecosystem, especially around data consistency for concurrent transactions through optimistic locking.
+We are building a Rust-based backend for an airline ticket booking system. The aim is to create a powerful and efficient REST API that allows users to do various booking activities like searching flights, booking seats, and making reservations. By using Rust's features, along with the Rocket framework for web development and SQLx for database interactions, we plan to fill gaps in Rust's ecosystem, especially around data consistency for concurrent transactions through optimistic locking.
 
-Rust has strong frameworks, like Rocket, for handling REST API requests. We’ll use MySQL as our database, connecting through Rust library SQLx. These tools help us build a system that meets the needs of an airline booking platform with high performance and safety standards.
+Rust has strong frameworks, like Rocket, for handling REST API requests. We'll use MySQL as our database, connecting through Rust library SQLx. These tools help us build a system that meets the needs of an airline booking platform with high performance and safety standards.
 
 ## Features
 Our API system provides comprehensive endpoints for user management and flight operations. All responses are in JSON format and require appropriate error handling.
@@ -424,7 +424,7 @@ user@system:~$ curl \
 ```bash
 curl \
   --header "Authorization: Bearer <your JWT token>" \
-  "http://localhost:8000/api/flights/availableSeats?flight_number=<flight number>>&flight_date=<YYYY-MM-DD>"
+  "http://localhost:8000/api/flights/availableSeats?flight_number=<flight number>&flight_date=<YYYY-MM-DD>"
 ```
 
 On success, the response will list all the remaining available seats on the flight.
@@ -460,7 +460,7 @@ user@system:~$ curl \
 {"booking_status":"Confirmed","flight_bookings":[{"flight_details":"Flight 590 on 2024-10-25","seat_number":1,"ticket_id":2}]}
 user@system:~$ curl \
   --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImV4cCI6MTczNDE0NzQ0M30.arPG4Jp2-KDs0V6-El2LhUR6bsW2xD0gxe28htl8I-s" \
-  --json '{"flights": [{ "flight_number": 590, "flight_date": "2024-10-26", "prefered_seat": 17}, { "flight_number": 1284, "flight_date": "2024-10-26", "prefered_seat": 24}]}' \
+  --json '{"flights": [{ "flight_number": 590, "flight_date": "2024-10-26", "preferred_seat": 17}, { "flight_number": 1284, "flight_date": "2024-10-26", "preferred_seat": 24}]}' \
   "http://localhost:8000/api/tickets/book"
 {"booking_status":"Confirmed","flight_bookings":[{"flight_details":"Flight 590 on 2024-10-26","seat_number":17,"ticket_id":3},{"flight_details":"Flight 1284 on 2024-10-26","seat_number":24,"ticket_id":4}]}
 ```
@@ -511,7 +511,12 @@ The project uses the cargo unit test infrastructure to ensure the functionality 
 cargo test
 ```
 
-In the `tests/` folder, there are tests for different services of the package. The `user_service_test.rs` contains tests that ensures the user authencation functionalities are working correctly, including user registration, user login and password correctness checks. The `flight_service_test.rs` contains tests that ensures flight data can successfully be queried, including flights for multiple dates and available seats for flights. The `ticket_service_test.rs` contains tests for ticket booking and seat selections, and ensures flights and seats are not double-booked even in concurrent request environments. The `throughput_test.rs` generates a large nuber of random requests to the system, to ensure the system is able to maintain a high throughput even when the requests are highly concurrent.
+In the `tests/` folder, there are tests for different services of the package.
+
+- The `user_service_test.rs` contains tests that ensures the user authencation functionalities are working correctly. It includes tests that ensure user registration requests can be correctly processed, tests that ensure requests with duplicated usernames can be correctly rejected, tests that ensure users can login with the correct password and vice versa, and tests that ensure non-existent users cannot login.
+- The `flight_service_test.rs` contains tests that ensures flight data can successfully be queried. It includes tests that ensures flights can be correctly searched given either a single date or a date range, tests that ensures available seat status can correctly be queried whether or not flight is partially booked, and tests that ensure non-existent flight query returns an error.
+- The `ticket_service_test.rs` contains tests for ticket booking and seat selections, and ensures flights and seats are not double-booked even in concurrent request environments. Specifically, for both flight booking and selection services, the test will send 10 concurrent requests when only one flight ticket or seat is available, or send 20 concurrent requests when only five flight tickets or setas are available. At the end, the test will check the sold tickets and seats exactly matches with the remaining tickets or seats.
+- The `throughput_test.rs` generates a large number of random requests to the system, to ensure the system is able to maintain a high throughput even when the requests are highly concurrent. It will have 100 users generate 2000 random concurrent requests, and display the system throughput (requests/second) at the end.
 
 ## Contributions
 
@@ -541,3 +546,6 @@ In the `tests/` folder, there are tests for different services of the package. T
 ### Testing Strategy
 - Building tests alongside features helped catch critical issues early, particularly in concurrent booking scenarios. For instance, our concurrent booking tests revealed a race condition in seat selection that could have led to double bookings in production. This was identified and fixed during development rather than after deployment.
 - Additionally, having comprehensive tests from the beginning would have eliminated the need for manual testing during minor code modifications, significantly improving development efficiency.
+
+> ### References
+> [1] BUREAU OF TRANSPORTATION STATISTICS, "Passengers Traffic," Bts.gov, <https://www.transtats.bts.gov/Data_Elements.aspx?Data=1> (accessed Nov. 3, 2024).

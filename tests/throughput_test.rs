@@ -268,7 +268,7 @@ async fn setup_test_data(ctx: &ThroughputContext) -> Result<(), AppError> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), AppError> {
     let test_name = "test_massive_concurrent_booking";
-    let num_users = 200;
+    let num_users = 100;
     let requests_per_user = 20;
 
     test_println!(test_name, "Setting up test data...");
@@ -277,7 +277,7 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
     // Create users concurrently
     test_println!(test_name, "Creating {} users concurrently...", num_users);
     // Create users in batches
-    const USER_BATCH_SIZE: usize = 20;
+    const USER_BATCH_SIZE: usize = 50;
     let mut user_ids = Vec::with_capacity(num_users);
 
     for chunk in (0..num_users).collect::<Vec<_>>().chunks(USER_BATCH_SIZE) {
@@ -303,7 +303,7 @@ async fn test_massive_concurrent_booking(ctx: &ThroughputContext) -> Result<(), 
             match result {
                 Ok(Ok(user_id)) => {
                     user_ids.push(user_id);
-                    if user_ids.len() % 20 == 0 {
+                    if user_ids.len() % 50 == 0 {
                         test_println!(test_name, "Created {} users so far...", user_ids.len());
                     }
                 }

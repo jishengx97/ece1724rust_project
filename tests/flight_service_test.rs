@@ -218,7 +218,7 @@ async fn test_get_available_seats(ctx: &FlightServiceContext) -> Result<(), AppE
         .await?;
 
     // Assert
-    assert_eq!(result.available_seats.len(), 10); // 应该有10个可用座位
+    assert_eq!(result.available_seats.len(), 10); // There should be 10 seats available 
     
     for i in 1..=10 {
         assert!(result.available_seats.contains(&i));
@@ -303,7 +303,7 @@ async fn test_get_available_seats_with_mixed_status(ctx: &FlightServiceContext) 
         .await?;
 
     // Assert
-    assert_eq!(result.available_seats.len(), 5); // 应该只有5个可用座位
+    assert_eq!(result.available_seats.len(), 5); // There should be 5 seats available 
     
     let expected_available_seats = vec![1, 3, 5, 7, 9];
     for seat_number in expected_available_seats {
