@@ -586,5 +586,9 @@ In the `tests/` folder, there are tests for different services of the package.
 - Building tests alongside features helped catch critical issues early, particularly in concurrent booking scenarios. For instance, our concurrent booking tests revealed a race condition in seat selection that could have led to double bookings in production. This was identified and fixed during development rather than after deployment.
 - Additionally, having comprehensive tests from the beginning would have eliminated the need for manual testing during minor code modifications, significantly improving development efficiency.
 
+## Video Demo
+
+![Video Demo](video_demo.mp4)
+
 > ### References
 > [1] BUREAU OF TRANSPORTATION STATISTICS, "Passengers Traffic," Bts.gov, <https://www.transtats.bts.gov/Data_Elements.aspx?Data=1> (accessed Nov. 3, 2024).
