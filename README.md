@@ -81,7 +81,7 @@ Creates a new user account in the system.
   - Gender is not male or female
   - Password cannot be hashed
 - `409 Conflict`: Username already exists
-- `422 Unprocessable Entity`: Missing required fields
+- `422 Unprocessable Entity`: Missing required fields or incorrect format
 
 #### User Login (`POST /api/login`)
 
@@ -108,7 +108,7 @@ Authenticates a user and provides a JWT token for subsequent requests. The token
 **Error Handling:**
 
 - `401 Unauthorized`: Invalid credentials (username or password is incorrect)
-- `422 Unprocessable Entity`: Missing required fields
+- `422 Unprocessable Entity`: Missing required fields or incorrect format
 
 ### Flight Service API
 
@@ -157,7 +157,7 @@ GET /api/flights/search?departure_city=New York&destination_city=London&departur
 - `400 Bad Request`: Invalid date format
   - Date format is not YYYY-MM-DD
 - `401 Unauthorized`: Invalid or missing JWT token
-- `422 Unprocessable Entity`: Missing required fields
+- `422 Unprocessable Entity`: Missing required fields or incorrect format
 
 #### Get Available Seats (`GET /api/flights/availableSeats`)
 
@@ -188,7 +188,7 @@ GET /api/flights/availableSeats?flight_number=123&flight_date=2024-06-15
 - `400 Bad Request`: Invalid date format
 - `401 Unauthorized`: Invalid or missing JWT token
 - `404 Not Found`: Flight not found
-- `422 Unprocessable Entity`: Missing required fields
+- `422 Unprocessable Entity`: Missing required fields or incorrect format
 
 ### Ticket Service API
 
@@ -247,7 +247,7 @@ This API is implemented with optimistic locking to ensure data consistency when 
   - Flight(s) already booked by current user
   - Flight(s) is fully booked
 - `401 Unauthorized`: Invalid or missing JWT token
-- `422 Unprocessable Entity`: Missing required fields
+- `422 Unprocessable Entity`: Missing required fields or incorrect format
 
 #### Book/Change Seat (`POST /api/tickets/seat/book`)
 
@@ -283,7 +283,7 @@ This API is implemented with optimistic locking to ensure data consistency when 
 - `404 Not Found`:
   - Flight not found
   - Seat not found
-- `422 Unprocessable Entity`: Missing required fields
+- `422 Unprocessable Entity`: Missing required fields or incorrect format
   
 #### Get Booking History (`GET /api/history`)
 
