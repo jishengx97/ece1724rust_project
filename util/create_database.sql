@@ -11,13 +11,13 @@ create table IF NOT EXISTS aircraft
 
 -- Default Aircraft
 INSERT IGNORE INTO aircraft (aircraft_id, capacity)
-VALUES (737, 169);
+VALUES (737, 30);
 
 INSERT IGNORE INTO aircraft (aircraft_id, capacity)
 VALUES (777, 400);
 
 INSERT IGNORE INTO aircraft (aircraft_id, capacity)
-VALUES (320, 146);
+VALUES (320, 25);
 
 
 INSERT IGNORE INTO aircraft (aircraft_id, capacity)
