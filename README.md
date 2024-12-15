@@ -588,7 +588,7 @@ In the `tests/` folder, there are tests for different services of the package.
 
 ## Video Demo
 
-![Video Demo](video_demo.mp4)
+The video demo of this project can be found [here](video_demo.mp4).
 
 > ### References
 > [1] BUREAU OF TRANSPORTATION STATISTICS, "Passengers Traffic," Bts.gov, <https://www.transtats.bts.gov/Data_Elements.aspx?Data=1> (accessed Nov. 3, 2024).
