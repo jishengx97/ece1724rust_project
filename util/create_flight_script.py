@@ -105,10 +105,10 @@ if __name__ == "__main__":
     flight_routes = [
         {
             "flight_number": 590,
-            "departure_city": "IAH",
+            "departure_city": "JFK",
             "destination_city": "YYZ",
             "departure_time": "07:20:00",
-            "arrival_time": "11:26:00",
+            "arrival_time": "08:50:00",
             "aircraft_id": 320,
             "overbooking": 0.015,
             "start_date": "2024-10-24",
@@ -116,8 +116,8 @@ if __name__ == "__main__":
         },
         {
             "flight_number": 1284,
-            "departure_city": "LAS",
-            "destination_city": "YYZ",
+            "departure_city": "LAX",
+            "destination_city": "JFK",
             "departure_time": "23:55:00",
             "arrival_time": "07:00:00",
             "aircraft_id": 737,
