@@ -369,22 +369,7 @@ mysql> quit
 mysql -u root -p
 ```
 
-### 2. Setup the database
-
-```bash
-# Replace <your secret password> with the actual password
-mysql -u root -p"<your secret password>" < util/create_database.sql
-```
-
-### 3. Insert some testing data into the database
-
-```bash
-# Install necessary python packages
-pip install mysql-connector-python python-dotenv
-python util/create_flight_script.py
-```
-
-### 4. Create a text file named `.env` in the project directory, and put the following lines in it (replace \<your secret password\> with the actual password)
+### 2. Create a text file named `.env` in the project directory, and put the following lines in it (replace \<your secret password\> with the actual password)
 
 ```bash
 DATABASE_URL="mysql://root:<your secret password>@localhost:3306/airline_reservation_system"
@@ -392,6 +377,21 @@ ADMIN_DATABASE_URL="mysql://root:<your secret password>@localhost:3306/mysql"
 JWT_SECRET=your_secret_key_here
 ROCKET_ADDRESS=127.0.0.1
 ROCKET_PORT=8000
+```
+
+### 3. Setup the database
+
+```bash
+# Replace <your secret password> with the actual password
+mysql -u root -p"<your secret password>" < util/create_database.sql
+```
+
+### 4. Insert some testing data into the database
+
+```bash
+# Install necessary python packages
+pip install mysql-connector-python python-dotenv
+python util/create_flight_script.py
 ```
 
 ### 5. Compile and run the rust project
@@ -578,7 +578,7 @@ In the `tests/` folder, there are tests for different services of the package.
 
 ### Project Management
 
-- Early API documentation could have prevented multiple redesigns of request/response structures. For example, our ticket booking API was modified three times to accommodate new requirements, such as adding preferred seat selection and multiple flight bookings in one request. 
+- Early API documentation could have prevented multiple redesigns of request/response structures. For example, our ticket booking API was modified three times to accommodate new requirements, such as adding preferred seat selection and multiple flight bookings in one request.
 - Pre-defined API specifications would have helped us identify these needs earlier. This would be particularly beneficial if frontend development were to be implemented, as it would ensure smooth integration between frontend and backend components.
 
 ### Testing Strategy
