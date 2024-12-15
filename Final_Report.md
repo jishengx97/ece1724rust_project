@@ -4,7 +4,8 @@ Guanhong Wu 1002377475 <guanhong.wu@mail.utoronto.ca>
 
 Shengxiang Ji 1002451232 <shengxiang.ji@mail.utoronto.ca>
 
-# Table of Contents
+## Table of Contents
+
 - [Motivation](#motivation)
 - [Objective](#objective)
 - [Features](#features)
@@ -41,6 +42,7 @@ We are building a Rust-based backend for an airline ticket booking system. The a
 Rust has strong frameworks, like Rocket, for handling REST API requests. We'll use MySQL as our database, connecting through Rust library SQLx. These tools help us build a system that meets the needs of an airline booking platform with high performance and safety standards.
 
 ## Features
+
 Our API system provides comprehensive endpoints for user management and flight operations. All responses are in JSON format and require appropriate error handling.
 
 ### User Service API
@@ -48,9 +50,11 @@ Our API system provides comprehensive endpoints for user management and flight o
 The User Service handles user authentication and registration operations, providing secure access to the system.
 
 #### Register User (`POST /api/register`)
+
 Creates a new user account in the system.
 
 **Request Body:**
+
 ```json
 {
   "username": "john_doe",
@@ -63,6 +67,7 @@ Creates a new user account in the system.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "user_id": 12345,
@@ -71,16 +76,19 @@ Creates a new user account in the system.
 ```
 
 **Error Handling:**
-- `400 Bad Request`: Invalid input data 
+
+- `400 Bad Request`: Invalid input data
   - Gender is not male or female
   - Password cannot be hashed
 - `409 Conflict`: Username already exists
 - `422 Unprocessable Entity`: Missing required fields
 
 #### User Login (`POST /api/login`)
+
 Authenticates a user and provides a JWT token for subsequent requests. The token is valid for 24 hours and records the user_id of the user that is logging in for future API requests.
 
 **Request Body:**
+
 ```json
 {
   "username": "john_doe",
@@ -89,6 +97,7 @@ Authenticates a user and provides a JWT token for subsequent requests. The token
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIs...",
@@ -97,6 +106,7 @@ Authenticates a user and provides a JWT token for subsequent requests. The token
 ```
 
 **Error Handling:**
+
 - `401 Unauthorized`: Invalid credentials (username or password is incorrect)
 - `422 Unprocessable Entity`: Missing required fields
 
@@ -105,9 +115,11 @@ Authenticates a user and provides a JWT token for subsequent requests. The token
 The Flight Service provides functionality to search flights and check seat availability.
 
 #### Search Flights (`GET /api/flights/search`)
+
 Searches for available flights based on specified criteria.
 
 **Query Parameters:**
+
 - Required:
   - `departure_city`: String (e.g., "New York")
   - `destination_city`: String (e.g., "London")
@@ -116,11 +128,13 @@ Searches for available flights based on specified criteria.
   - `end_date`: YYYY-MM-DD (e.g., "2024-06-20")
 
 **Example Request:**
+
 ```
 GET /api/flights/search?departure_city=New York&destination_city=London&departure_date=2024-06-15
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "flights": [
@@ -139,25 +153,30 @@ GET /api/flights/search?departure_city=New York&destination_city=London&departur
 ```
 
 **Error Handling:**
-- `400 Bad Request`: Invalid date format 
-  -  Date format is not YYYY-MM-DD
+
+- `400 Bad Request`: Invalid date format
+  - Date format is not YYYY-MM-DD
 - `401 Unauthorized`: Invalid or missing JWT token
 - `422 Unprocessable Entity`: Missing required fields
 
 #### Get Available Seats (`GET /api/flights/availableSeats`)
+
 Retrieves available seats for a specific flight.
 
 **Query Parameters:**
+
 - Required:
   - `flight_number`: Integer (e.g., 123)
   - `flight_date`: YYYY-MM-DD (e.g., "2024-06-15")
 
 **Example Request:**
+
 ```
 GET /api/flights/availableSeats?flight_number=123&flight_date=2024-06-15
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "available_seats": [1, 2, 3, 5, 8, 13, 21]
@@ -165,6 +184,7 @@ GET /api/flights/availableSeats?flight_number=123&flight_date=2024-06-15
 ```
 
 **Error Handling:**
+
 - `400 Bad Request`: Invalid date format
 - `401 Unauthorized`: Invalid or missing JWT token
 - `404 Not Found`: Flight not found
@@ -175,11 +195,13 @@ GET /api/flights/availableSeats?flight_number=123&flight_date=2024-06-15
 The Ticket Service handles flight ticket booking operations and booking history queries. It supports ticket booking with seat selection and viewing booking history.
 
 #### Book Ticket (`POST /api/tickets/book`)
+
 Books tickets for one or multiple flights in one request. User also can choose to book a preferred seat for each flight. If the seat is already booked or unavailable, the ticket still can be booked without the preferred seat.
 If user tries to book a ticket with multiple flights and some of the flights are not available or the user already has a ticket for some of the flights, all tickets will not be booked.
 This API is implemented with optimistic locking to ensure data consistency when multiple users try to book the same ticket and/or seat at the same time. The optimistic locking will retry the booking processs until the booking is successful or the booking is failed due to out of stock.
 
 **Request Body Example:**
+
 ```json
 {
   "flights": [
@@ -199,6 +221,7 @@ This API is implemented with optimistic locking to ensure data consistency when 
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "booking_status": "Confirmed",
@@ -218,7 +241,8 @@ This API is implemented with optimistic locking to ensure data consistency when 
 ```
 
 **Error Handling:**
-- `400 Bad Request`: 
+
+- `400 Bad Request`:
   - Flight(s) does not exist
   - Flight(s) already booked by current user
   - Flight(s) is fully booked
@@ -226,11 +250,13 @@ This API is implemented with optimistic locking to ensure data consistency when 
 - `422 Unprocessable Entity`: Missing required fields
 
 #### Book/Change Seat (`POST /api/tickets/seat/book`)
-Books or changes a seat for an existing ticket. 
+
+Books or changes a seat for an existing ticket.
 This API will handle the request to help user book a seat for a flight and release the old seat if the user already holds a seat for the flight.
 This API is implemented with optimistic locking to ensure data consistency when multiple users try to book the same seat at the same time.
 
 **Request Body:**
+
 ```json
 {
   "flight_number": 123,
@@ -240,6 +266,7 @@ This API is implemented with optimistic locking to ensure data consistency when 
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true
@@ -247,20 +274,23 @@ This API is implemented with optimistic locking to ensure data consistency when 
 ```
 
 **Error Handling:**
-- `400 Bad Request`: 
+
+- `400 Bad Request`:
   - Seat already booked
   - No ticket of this flight for current user
   - Seat is not available
 - `401 Unauthorized`: Invalid or missing JWT token
-- `404 Not Found`: 
+- `404 Not Found`:
   - Flight not found
   - Seat not found
 - `422 Unprocessable Entity`: Missing required fields
   
 #### Get Booking History (`GET /api/history`)
+
 Retrieves the booking history that includes all tickets for the authenticated user.
 
 **Response (200 OK):**
+
 ```json
 {
   "flights": [
@@ -279,18 +309,22 @@ Retrieves the booking history that includes all tickets for the authenticated us
 ```
 
 **Error Handling:**
+
 - `401 Unauthorized`: Invalid or missing JWT token
 
-### Utils 
+### Utils
 
 #### Swagger Integration
-We integrated Swagger UI to help developers explore and test the APIs. The Swagger UI provides an interactive interface to view all API endpoints and schemas at http://localhost:8000/swagger/index.html. Due to current limitations in Rust's OpenAPI implementation, JWT token authentication cannot be included in requests' header through Swagger. Therefore, only the register and login endpoints can be fully tested via Swagger UI. However, it remains a valuable tool for API documentation and exploration.
+
+We integrated Swagger UI to help developers explore and test the APIs. The Swagger UI provides an interactive interface to view all API endpoints and schemas at <http://localhost:8000/swagger/index.html. Due to current limitations in Rust's OpenAPI implementation, JWT token authentication cannot be included in requests' header through Swagger. Therefore, only the register and login endpoints can be fully tested via Swagger UI. However, it remains a valuable tool for API documentation and exploration.
 
 ![Swagger UI API Screenshot](images/swagger_api.png)
 ![Swagger UI Schemas Screenshot](images/swagger_schemas.png)
 
 #### Database Initialization Script
+
 The `create_database.sql` script helps initialize the MySQL database with the required schema. It creates the following key tables:
+
 - `aircraft`: Stores aircraft information with default entries for models 737, 777, 320, 900, and 200
 - `user` and `customer_info`: Manages user authentication and customer details
 - `flight_route`: Contains flight route information including cities and schedules
@@ -299,6 +333,7 @@ The `create_database.sql` script helps initialize the MySQL database with the re
 - `ticket`: Records ticket bookings and seat assignments
 
 #### Flight Data Generation Script
+
 Since we haven't implemented administrative APIs for adding flights, we created a Python script (`create_flight_script.py`) to populate the database with sample flight data. This script adds default flight routes and generates corresponding flights for testing and demonstration purposes. It creates two flight routes between major cities like JFK-YYZ and LAX-JFK with realistic schedules and seat configurations.
 
 ## Reproducibility Guide
@@ -521,6 +556,7 @@ In the `tests/` folder, there are tests for different services of the package.
 ## Contributions
 
 ### Guanhong Wu
+
 - Set up project framework with Rocket, SQLx, and Swagger (rocket_okapi)
 - Designed and implemented MySQL database schema
 - Implemented user registration and login functionality
@@ -530,6 +566,7 @@ In the `tests/` folder, there are tests for different services of the package.
 - Wrote test cases for user authentication, flight search, seat availability, and ticket retrieval
 
 ### Shengxiang Ji
+
 - Created Python scripts for testing and demonstration data generation
 - Implemented ticket booking system with support for multiple flights in one request and optimistic locking
 - Developed concurrent booking tests to verify system behavior under multiple user scenarios
@@ -540,10 +577,12 @@ In the `tests/` folder, there are tests for different services of the package.
 ## Lessons Learned
 
 ### Project Management
+
 - Early API documentation could have prevented multiple redesigns of request/response structures. For example, our ticket booking API was modified three times to accommodate new requirements, such as adding preferred seat selection and multiple flight bookings in one request. 
 - Pre-defined API specifications would have helped us identify these needs earlier. This would be particularly beneficial if frontend development were to be implemented, as it would ensure smooth integration between frontend and backend components.
 
 ### Testing Strategy
+
 - Building tests alongside features helped catch critical issues early, particularly in concurrent booking scenarios. For instance, our concurrent booking tests revealed a race condition in seat selection that could have led to double bookings in production. This was identified and fixed during development rather than after deployment.
 - Additionally, having comprehensive tests from the beginning would have eliminated the need for manual testing during minor code modifications, significantly improving development efficiency.
 
