@@ -29,7 +29,7 @@ Rust also provides memory safety, without needing a garbage collector, therefore
 
 Rust offers mature web frameworks: Rocket, Actix Web which support building web applications. Rust has crates like Diesel and SQLx to interact with databases and it can work with MySQL. They provide an extensive foundation to create a scalable and performant solution for an airline reservation system.
 
-Nonetheless, it seems that SQLx both do not provide built-in support for optimistic locking, a mechanism that is useful for maintaining data consistency in high-concurrency systems. For example, when multiple customers try to book the last available seat at the same time, the system needs to handle the conflicts to ensure the seat is only booked by one customer and another customer receives an error message to avoid double booking on the same seat.
+Nonetheless, it seems that SQLx do not provide built-in support for optimistic locking, a mechanism that is useful for maintaining data consistency in high-concurrency systems. For example, when multiple customers try to book the last available seat at the same time, the system needs to handle the conflicts to ensure the seat is only booked by one customer and another customer receives an error message to avoid double booking on the same seat.
 
 Next, we want to take the issues described above and write implement optimistic locking with SQLx. This will assist the system to be capable of being aware of inconsistency while multiple transactions are running at the same time and rollback transactions, if needed. Doing this will ensure data consistency but it will not degrade the performance of the airline booking system.
 
@@ -369,7 +369,7 @@ mysql> quit
 mysql -u root -p
 ```
 
-### 2. Create a text file named `.env` in the project directory, and put the following lines in it (replace \<your secret password\> with the actual password)
+### 2. Create a text file named `.env` in the project directory, and put the following lines in it (replace \<your secret password\> with the actual password set in step 1)
 
 ```bash
 DATABASE_URL="mysql://root:<your secret password>@localhost:3306/airline_reservation_system"
@@ -403,7 +403,7 @@ cargo run
 
 ## User's Guide
 
-### 1. To register an user, send a POST request to route `api/register/`
+### 1. To register an user, send a POST request to route `api/register`
 
 ```bash
 curl "http://localhost:8000/api/register/" \
@@ -418,7 +418,7 @@ user@system:~$ curl "http://localhost:8000/api/register/" \
 {"user_id":1,"status":"success"}
 ```
 
-### 2. To login, send a POST request to route `api/login/`
+### 2. To login, send a POST request to route `api/login`
 
 ```bash
 curl "http://localhost:8000/api/login/" \
@@ -581,6 +581,7 @@ In the `tests/` folder, there are tests for different services of the package. E
 
 - Created Python scripts for testing and demonstration data generation
 - Implemented ticket booking system with support for multiple flights in one request and optimistic locking
+- Implemented booking history APIs
 - Developed concurrent booking tests to verify system behavior under multiple user scenarios
 - Created throughput tests to evaluate web server performance
 - Wrote comprehensive Reproducibility Guide for environment setup and server deployment
