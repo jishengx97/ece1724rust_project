@@ -121,16 +121,16 @@ Searches for available flights based on specified criteria.
 **Query Parameters:**
 
 - Required:
-  - `departure_city`: String (e.g., "New York")
-  - `destination_city`: String (e.g., "London")
-  - `departure_date`: YYYY-MM-DD (e.g., "2024-06-15")
+  - `departure_city`: String (e.g., "YYZ")
+  - `destination_city`: String (e.g., "JFK")
+  - `departure_date`: YYYY-MM-DD (e.g., "2024-10-25")
 - Optional:
-  - `end_date`: YYYY-MM-DD (e.g., "2024-06-20")
+  - `end_date`: YYYY-MM-DD (e.g., "2024-11-20")
 
 **Example Request:**
 
 ```
-GET /api/flights/search?departure_city=New York&destination_city=London&departure_date=2024-06-15
+GET /api/flights/search?departure_city=YYZ&destination_city=JFK&departure_date=2024-10-25
 ```
 
 **Response (200 OK):**
@@ -140,13 +140,13 @@ GET /api/flights/search?departure_city=New York&destination_city=London&departur
   "flights": [
     {
       "flight_id": 123,
-      "flight_number": "AA123",
-      "departure_city": "New York",
-      "destination_city": "London",
+      "flight_number": 123,
+      "departure_city": "YYZ",
+      "destination_city": "JFK",
       "departure_time": "10:00:00",
-      "arrival_time": "22:00:00",
+      "arrival_time": "11:15:00",
       "available_tickets": 50,
-      "flight_date": "2024-06-15"
+      "flight_date": "2024-10-20"
     }
   ]
 }
@@ -297,11 +297,11 @@ Retrieves the booking history that includes all tickets for the authenticated us
     {
       "flight_number": 123,
       "seat_number": "15",
-      "departure_city": "New York",
-      "destination_city": "London",
-      "flight_date": "2024-06-15",
+      "departure_city": "YYZ",
+      "destination_city": "JFK",
+      "flight_date": "2024-10-20",
       "departure_time": "10:00:00",
-      "arrival_time": "22:00:00"
+      "arrival_time": "11:15:00"
     },
     ...
   ]
