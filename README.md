@@ -147,7 +147,8 @@ GET /api/flights/search?departure_city=YYZ&destination_city=JFK&departure_date=2
       "arrival_time": "11:15:00",
       "available_tickets": 50,
       "flight_date": "2024-10-20"
-    }
+    },
+    ...
   ]
 }
 ```
