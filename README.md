@@ -391,8 +391,8 @@ mysql -u root -p"<your secret password>" < util/create_database.sql
 
 ```bash
 # Install necessary python packages
-pip install mysql-connector-python python-dotenv
-python util/create_flight_script.py
+python3 -m pip install mysql-connector-python python-dotenv
+python3 util/create_flight_script.py
 ```
 
 ### 5. Compile and run the rust project
