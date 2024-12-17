@@ -366,7 +366,9 @@ sudo mysql -u root
 mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password  by '<some secret password>';
 mysql> FLUSH PRIVILEGES;
 mysql> quit
-# test logging in as the root user with the above password
+# test logging in as the root user with the above password. 
+# The system will prompt you to input the password, and you should be able to login with the above password you set. 
+# Quit MySQL once you've logged in.
 mysql -u root -p
 ```
 
@@ -383,6 +385,7 @@ ROCKET_PORT=8000
 ### 3. Setup the database
 
 ```bash
+# Run the command below in the project directory
 # Replace <your secret password> with the actual password
 mysql -u root -p"<your secret password>" < util/create_database.sql
 ```
@@ -392,6 +395,7 @@ mysql -u root -p"<your secret password>" < util/create_database.sql
 ```bash
 # Install necessary python packages
 python3 -m pip install mysql-connector-python python-dotenv
+# Run the command below in the project directory
 python3 util/create_flight_script.py
 ```
 
