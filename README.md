@@ -363,7 +363,7 @@ brew services start mysql
 sudo mysql -u root
 # Enter system root password as required
 # Update the root user password (replace <some secret password> with the actual password)
-mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password  by '<some secret password>;
+mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password  by '<some secret password>';
 mysql> FLUSH PRIVILEGES;
 mysql> quit
 # test logging in as the root user with the above password
